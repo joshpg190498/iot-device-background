@@ -1,0 +1,418 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dineug/erd-editor/main/json-schema/schema.json",
+  "version": "3.0.0",
+  "settings": {
+    "width": 2000,
+    "height": 2000,
+    "scrollTop": -95.384,
+    "scrollLeft": -41.4619,
+    "zoomLevel": 0.9,
+    "show": 431,
+    "database": 4,
+    "databaseName": "sbc",
+    "canvasType": "ERD",
+    "language": 1,
+    "tableNameCase": 4,
+    "columnNameCase": 2,
+    "bracketType": 1,
+    "relationshipDataTypeSync": true,
+    "relationshipOptimization": false,
+    "columnOrder": [
+      1,
+      2,
+      4,
+      8,
+      16,
+      32,
+      64
+    ],
+    "maxWidthComment": -1
+  },
+  "doc": {
+    "tableIds": [
+      "aA6azQ1HnLOIrgjIfzOTU",
+      "SPwvJC32YrOmQR_VHhXZT"
+    ],
+    "relationshipIds": [],
+    "indexIds": [],
+    "memoIds": []
+  },
+  "collections": {
+    "tableEntities": {
+      "aA6azQ1HnLOIrgjIfzOTU": {
+        "id": "aA6azQ1HnLOIrgjIfzOTU",
+        "name": "DEVICE",
+        "comment": "Tabla que almacena información del dispositivo",
+        "columnIds": [
+          "_mV6xXrACD0voRRpI2S-9",
+          "gOQIz04wNHDVsGHFTHhun",
+          "aAfqzSNwJ04nLL2x94bO_"
+        ],
+        "seqColumnIds": [
+          "_mV6xXrACD0voRRpI2S-9",
+          "gOQIz04wNHDVsGHFTHhun",
+          "aAfqzSNwJ04nLL2x94bO_",
+          "1uYquUzbBIOzV11s1S5Hr"
+        ],
+        "ui": {
+          "x": 32.7355,
+          "y": 61.5377,
+          "zIndex": 2,
+          "widthName": 60,
+          "widthComment": 252,
+          "color": ""
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712788338137
+        }
+      },
+      "SPwvJC32YrOmQR_VHhXZT": {
+        "id": "SPwvJC32YrOmQR_VHhXZT",
+        "name": "READING_SETTINGS",
+        "comment": "Tabla que almacena la configuración de lectura de los parámetros",
+        "columnIds": [
+          "jQXNxleuR7itkYpR0AdXl",
+          "Z05IRq1eAd5ZoJ7AypuFt",
+          "DN4Ri95TsCj20jAhYkv2n",
+          "3iVWHk8tNACaFyhW_EynL"
+        ],
+        "seqColumnIds": [
+          "jQXNxleuR7itkYpR0AdXl",
+          "Z05IRq1eAd5ZoJ7AypuFt",
+          "DN4Ri95TsCj20jAhYkv2n",
+          "3iVWHk8tNACaFyhW_EynL"
+        ],
+        "ui": {
+          "x": 31.6245,
+          "y": 204.871,
+          "zIndex": 4,
+          "widthName": 109,
+          "widthComment": 348,
+          "color": ""
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712793828163
+        }
+      }
+    },
+    "tableColumnEntities": {
+      "_mV6xXrACD0voRRpI2S-9": {
+        "id": "_mV6xXrACD0voRRpI2S-9",
+        "tableId": "aA6azQ1HnLOIrgjIfzOTU",
+        "name": "ID_DEVICE",
+        "comment": "Identificador del dispositivo",
+        "dataType": "VARCHAR",
+        "default": "",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 149,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712793606368
+        }
+      },
+      "gOQIz04wNHDVsGHFTHhun": {
+        "id": "gOQIz04wNHDVsGHFTHhun",
+        "tableId": "aA6azQ1HnLOIrgjIfzOTU",
+        "name": "DATA_FIELD",
+        "comment": "Campo",
+        "dataType": "VARCHAR",
+        "default": "",
+        "options": 0,
+        "ui": {
+          "keys": 0,
+          "widthName": 64,
+          "widthComment": 60,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712793679256
+        }
+      },
+      "aAfqzSNwJ04nLL2x94bO_": {
+        "id": "aAfqzSNwJ04nLL2x94bO_",
+        "tableId": "aA6azQ1HnLOIrgjIfzOTU",
+        "name": "VALUE",
+        "comment": "Valor",
+        "dataType": "VARCHAR",
+        "default": "",
+        "options": 0,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 60,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712793742844
+        }
+      },
+      "jQXNxleuR7itkYpR0AdXl": {
+        "id": "jQXNxleuR7itkYpR0AdXl",
+        "tableId": "SPwvJC32YrOmQR_VHhXZT",
+        "name": "ID_DEVICE",
+        "comment": "Identificador del dispositivo",
+        "dataType": "VARCHAR",
+        "default": "",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 149,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712794022380
+        }
+      },
+      "1uYquUzbBIOzV11s1S5Hr": {
+        "id": "1uYquUzbBIOzV11s1S5Hr",
+        "tableId": "aA6azQ1HnLOIrgjIfzOTU",
+        "name": "",
+        "comment": "",
+        "dataType": "",
+        "default": "",
+        "options": 10,
+        "ui": {
+          "keys": 1,
+          "widthName": 60,
+          "widthComment": 60,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712794077938,
+          "createAt": 1712794077937
+        }
+      },
+      "Z05IRq1eAd5ZoJ7AypuFt": {
+        "id": "Z05IRq1eAd5ZoJ7AypuFt",
+        "tableId": "SPwvJC32YrOmQR_VHhXZT",
+        "name": "PARAMETER",
+        "comment": "Parametro",
+        "dataType": "VARCHAR",
+        "default": "",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 67,
+          "widthComment": 60,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712794079409
+        }
+      },
+      "DN4Ri95TsCj20jAhYkv2n": {
+        "id": "DN4Ri95TsCj20jAhYkv2n",
+        "tableId": "SPwvJC32YrOmQR_VHhXZT",
+        "name": "PERIOD",
+        "comment": "Periodo de lectura en segundos",
+        "dataType": "INT",
+        "default": "1",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 169,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797796626,
+          "createAt": 1712794173600
+        }
+      },
+      "3iVWHk8tNACaFyhW_EynL": {
+        "id": "3iVWHk8tNACaFyhW_EynL",
+        "tableId": "SPwvJC32YrOmQR_VHhXZT",
+        "name": "ACTIVE",
+        "comment": "Estado del parámetro (1: leer, 0: no leer)",
+        "dataType": "BOOLEAN",
+        "default": "0",
+        "options": 8,
+        "ui": {
+          "keys": 0,
+          "widthName": 60,
+          "widthComment": 213,
+          "widthDataType": 60,
+          "widthDefault": 60
+        },
+        "meta": {
+          "updateAt": 1712797774502,
+          "createAt": 1712794200159
+        }
+      }
+    },
+    "relationshipEntities": {
+      "vuFhwTxbmUOzNbAK3eRac": {
+        "id": "vuFhwTxbmUOzNbAK3eRac",
+        "identification": false,
+        "relationshipType": 16,
+        "startRelationshipType": 2,
+        "start": {
+          "tableId": "aA6azQ1HnLOIrgjIfzOTU",
+          "columnIds": [
+            "1uYquUzbBIOzV11s1S5Hr"
+          ],
+          "x": 490.7355,
+          "y": 137.5377,
+          "direction": 2
+        },
+        "end": {
+          "tableId": "SPwvJC32YrOmQR_VHhXZT",
+          "columnIds": [
+            "Z05IRq1eAd5ZoJ7AypuFt"
+          ],
+          "x": 590.5134,
+          "y": 307.98220000000003,
+          "direction": 1
+        },
+        "meta": {
+          "updateAt": 1712794085827,
+          "createAt": 1712794079410
+        }
+      }
+    },
+    "indexEntities": {},
+    "indexColumnEntities": {},
+    "memoEntities": {}
+  },
+  "lww": {
+    "aA6azQ1HnLOIrgjIfzOTU": [
+      "tableEntities",
+      1712788338135,
+      -1,
+      {
+        "name": 1712793671272,
+        "comment": 1712793602717
+      }
+    ],
+    "_mV6xXrACD0voRRpI2S-9": [
+      "tableColumnEntities",
+      1712793606367,
+      -1,
+      {
+        "name": 1712793777109,
+        "dataType": 1712793753588,
+        "options(notNull)": 1712793769480,
+        "comment": 1712793781142
+      }
+    ],
+    "gOQIz04wNHDVsGHFTHhun": [
+      "tableColumnEntities",
+      1712793679256,
+      -1,
+      {
+        "name": 1712793741590,
+        "dataType": 1712793756072,
+        "comment": 1712793784290
+      }
+    ],
+    "aAfqzSNwJ04nLL2x94bO_": [
+      "tableColumnEntities",
+      1712793742843,
+      -1,
+      {
+        "name": 1712793746078,
+        "dataType": 1712793758256,
+        "comment": 1712793786618
+      }
+    ],
+    "settings.databaseName": [
+      "settings",
+      -1,
+      -1,
+      {
+        "databaseName": 1712793799217
+      }
+    ],
+    "SPwvJC32YrOmQR_VHhXZT": [
+      "tableEntities",
+      1712793828159,
+      -1,
+      {
+        "name": 1712793855179,
+        "comment": 1712794020543
+      }
+    ],
+    "jQXNxleuR7itkYpR0AdXl": [
+      "tableColumnEntities",
+      1712794022379,
+      -1,
+      {
+        "name": 1712794062483,
+        "dataType": 1712794121590,
+        "comment": 1712794127989,
+        "options(notNull)": 1712794160886
+      }
+    ],
+    "1uYquUzbBIOzV11s1S5Hr": [
+      "tableColumnEntities",
+      1712794077936,
+      1712795383445,
+      {
+        "options(primaryKey)": 1712794077936
+      }
+    ],
+    "Z05IRq1eAd5ZoJ7AypuFt": [
+      "tableColumnEntities",
+      1712794079407,
+      -1,
+      {
+        "options(notNull)": 1712794162423,
+        "name": 1712794170090,
+        "dataType": 1712794154047,
+        "default": 1712794079407,
+        "comment": 1712794173347
+      }
+    ],
+    "vuFhwTxbmUOzNbAK3eRac": [
+      "relationshipEntities",
+      1712794079407,
+      1712794111782,
+      {
+        "relationshipType": 1712794085826
+      }
+    ],
+    "DN4Ri95TsCj20jAhYkv2n": [
+      "tableColumnEntities",
+      1712794173598,
+      -1,
+      {
+        "name": 1712794177156,
+        "dataType": 1712794185228,
+        "options(notNull)": 1712794188446,
+        "default": 1712794190501,
+        "comment": 1712797796625
+      }
+    ],
+    "3iVWHk8tNACaFyhW_EynL": [
+      "tableColumnEntities",
+      1712794200157,
+      -1,
+      {
+        "name": 1712794204476,
+        "dataType": 1712794214005,
+        "options(notNull)": 1712794215845,
+        "default": 1712794218315,
+        "comment": 1712794231847
+      }
+    ]
+  }
+}
