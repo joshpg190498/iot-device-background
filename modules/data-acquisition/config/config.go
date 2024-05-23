@@ -19,6 +19,7 @@ var (
 	MQTTSubConfigTopic string
 	MQTTPubConfigTopic string
 	MQTTPubDataTopic   string
+	DatabasePath       string
 )
 
 func LoadEndVars() {
@@ -51,4 +52,5 @@ func LoadEndVars() {
 	MQTTPubConfigTopic = fmt.Sprintf("DEVICES/%s/CONFIG", DeviceID)
 	MQTTPubDataTopic = fmt.Sprintf("DEVICES/%s/DATA", DeviceID)
 
+	DatabasePath = os.Getenv("DB_PATH")
 }

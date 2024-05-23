@@ -2,8 +2,11 @@ package sqlite
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var db *sql.DB
@@ -41,6 +44,7 @@ func InitDB(dbPath string) error {
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		if err := os.MkdirAll(dir, 0755); err != nil {
+			fmt.Println("Error al crear directorio de DB.")
 			return err
 		}
 	}
@@ -48,16 +52,19 @@ func InitDB(dbPath string) error {
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		_, err := os.Create(dbPath)
 		if err != nil {
+			fmt.Println("Error al crear DB.")
 			return err
 		}
 
 		database, err := ConnectDB(dbPath)
 		if err != nil {
+			fmt.Println("Error al conectarse a DB.")
 			return err
 		}
 		db = database
 
 		if _, err := ExecuteNonQuery(QueryCreateTables()); err != nil {
+			fmt.Println("Error creando tablas en DB.")
 			return err
 		}
 	} else {
@@ -67,7 +74,7 @@ func InitDB(dbPath string) error {
 		}
 		db = database
 	}
-
+	fmt.Println("Conexión exitosa a DB.")
 	return nil
 }
 

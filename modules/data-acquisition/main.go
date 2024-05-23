@@ -1,12 +1,11 @@
 package main
 
 import (
-	"ceiot-tf-sbc/modules/sbc-data-acquisition/config"
-	"ceiot-tf-sbc/modules/sbc-data-acquisition/mqtt"
-	"ceiot-tf-sbc/modules/sbc-data-acquisition/system"
+	"ceiot-tf-sbc/modules/data-acquisition/config"
+	"ceiot-tf-sbc/modules/data-acquisition/mqtt"
+	"ceiot-tf-sbc/modules/data-acquisition/sqlite"
 
 	"fmt"
-	"time"
 )
 
 func handleMessage(message string) {
@@ -14,23 +13,16 @@ func handleMessage(message string) {
 }
 
 func main() {
-	system.GetSystemInfo()
+	//system.GetSystemInfo()
 	config.LoadEndVars()
 	go forever()
-	go publishData()
+	//go publishData()
 	select {}
 }
 
 func forever() {
-	mqtt.ConnectClient(config.DeviceID, config.MQTTBroker, config.MQTTClientID, config.MQTTSubTopics, handleMessage)
-}
-
-func publishData() {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		<-ticker.C
-		mqtt.PublishData("topic", "bye")
+	err := sqlite.InitDB(config.DatabasePath)
+	if err != nil {
+		mqtt.ConnectClient(config.DeviceID, config.MQTTBroker, config.MQTTClientID, config.MQTTSubTopics, handleMessage)
 	}
 }

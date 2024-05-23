@@ -52,9 +52,9 @@ func ConnectClient(DeviceID string, MQTTBroker string, MQTTClientID string, MQTT
 		SetConnectionLostHandler(onConnectionLost).
 		SetOnConnectHandler(onConnect).
 		SetAutoReconnect(true).
-		SetMaxReconnectInterval(5 * time.Second).
+		SetMaxReconnectInterval(2 * time.Second).
 		SetConnectRetry(true).
-		SetConnectRetryInterval(5 * time.Second)
+		SetConnectRetryInterval(2 * time.Second)
 
 	client = mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
