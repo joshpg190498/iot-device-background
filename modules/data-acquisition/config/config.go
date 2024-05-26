@@ -8,49 +8,46 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// Variables globales para las configuraciones
-var (
-	DeviceID           string
-	MQTTHost           string
-	MQTTPort           string
-	MQTTClientID       string
-	MQTTBroker         string
-	MQTTSubTopics      []string
-	MQTTSubConfigTopic string
-	MQTTPubConfigTopic string
-	MQTTPubDataTopic   string
-	DatabasePath       string
-)
-
-func LoadEndVars() {
+// LoadEnvVars carga las variables de entorno desde el archivo .env y las asigna a Config
+func LoadEnvVars() (*Config, error) {
 	dir, err := os.Getwd()
 	if err != nil {
-		fmt.Println("Error al obtener el directorio actual:", err)
-		return
+		return nil, fmt.Errorf("error al obtener el directorio actual: %w", err)
 	}
 
 	parentDir := filepath.Join(dir, "..", "..")
-
 	envFile := filepath.Join(parentDir, ".env")
 
 	err = godotenv.Load(envFile)
 	if err != nil {
-		fmt.Println("Error al cargar el archivo .env:", err)
-		return
+		return nil, fmt.Errorf("error loading .env file: %w", err)
 	}
 
-	DeviceID = os.Getenv("ID_DEVICE")
-	MQTTHost = os.Getenv("MQTT_HOST")
-	MQTTPort = os.Getenv("MQTT_PORT")
-	MQTTClientID = "mqtt-sbc-data-acquisition-" + DeviceID
-	MQTTBroker = "tcp://" + MQTTHost + ":" + MQTTPort
+	deviceID := os.Getenv("ID_DEVICE")
+	mqttHost := os.Getenv("MQTT_HOST")
+	mqttPort := os.Getenv("MQTT_PORT")
 
-	MQTTSubTopics = []string{}
-	MQTTSubConfigTopic = fmt.Sprintf("SERVER/DEVICES/%s/CONFIG", DeviceID)
-	MQTTSubTopics = append(MQTTSubTopics, MQTTSubConfigTopic)
+	mqttClientID := fmt.Sprintf("mqtt-sbc-data-acquisition-%s", deviceID)
+	mqttBroker := fmt.Sprintf("tcp://%s:%s", mqttHost, mqttPort)
 
-	MQTTPubConfigTopic = fmt.Sprintf("DEVICES/%s/CONFIG", DeviceID)
-	MQTTPubDataTopic = fmt.Sprintf("DEVICES/%s/DATA", DeviceID)
+	mqttSubConfigTopic := fmt.Sprintf("SERVER/DEVICES/%s/CONFIG", deviceID)
+	mqttSubTopics := []string{mqttSubConfigTopic}
 
-	DatabasePath = os.Getenv("DB_PATH")
+	mqttPubConfigTopic := fmt.Sprintf("DEVICES/%s/CONFIG", deviceID)
+	mqttPubDataTopic := fmt.Sprintf("DEVICES/%s/DATA", deviceID)
+	databasePath := os.Getenv("DB_PATH")
+
+	config := &Config{
+		DeviceID:           deviceID,
+		MQTTHost:           mqttHost,
+		MQTTPort:           mqttPort,
+		MQTTClientID:       mqttClientID,
+		MQTTBroker:         mqttBroker,
+		MQTTSubTopics:      mqttSubTopics,
+		MQTTPubConfigTopic: mqttPubConfigTopic,
+		MQTTPubDataTopic:   mqttPubDataTopic,
+		DatabasePath:       databasePath,
+	}
+
+	return config, nil
 }
