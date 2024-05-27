@@ -5,6 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
+
+	"ceiot-tf-sbc/modules/data-acquisition/models"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -98,19 +101,10 @@ func QueryCreateTables() string {
 		ID_DEVICE TEXT,
 		UPDATE_DATETIME_UTC TEXT
 	);
-	
-	-- DATA DUMMY PARA PRUEBAS
-	INSERT INTO DEVICE (ID_DEVICE, FIELD, VALUE) VALUES ('SBC001', 'location', 'warehouse');
-
-	INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES ('SBC001', 'temperatura', 10, 1);
-	INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES ('SBC001', 'ram', 30, 1);
-	INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES ('SBC001', 'disk', 60, 0);
-
-	INSERT INTO DEVICE_UPDATES (ID_DEVICE, UPDATE_DATETIME_UTC) VALUES ('SBC001', '2024-05-22T12:00:00Z');
 	`
 }
 
-func GetDeviceReadingSettings() ([]DeviceReadingSetting, error) {
+func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	query := "SELECT ID_DEVICE, PARAMETER, PERIOD, ACTIVE FROM DEVICE_READING_SETTINGS"
 	rows, err := ExecuteQuery(query)
 	if err != nil {
@@ -118,9 +112,9 @@ func GetDeviceReadingSettings() ([]DeviceReadingSetting, error) {
 	}
 	defer rows.Close()
 
-	settings := []DeviceReadingSetting{}
+	settings := []models.DeviceReadingSetting{}
 	for rows.Next() {
-		var setting DeviceReadingSetting
+		var setting models.DeviceReadingSetting
 		if err := rows.Scan(&setting.IDDevice, &setting.Parameter, &setting.Period, &setting.Active); err != nil {
 			return nil, err
 		}
@@ -129,7 +123,7 @@ func GetDeviceReadingSettings() ([]DeviceReadingSetting, error) {
 	return settings, nil
 }
 
-func GetDevices() ([]Device, error) {
+func GetDeviceInfoFields() ([]models.Device, error) {
 	query := "SELECT ID_DEVICE, FIELD, VALUE FROM DEVICE"
 	rows, err := ExecuteQuery(query)
 	if err != nil {
@@ -137,9 +131,9 @@ func GetDevices() ([]Device, error) {
 	}
 	defer rows.Close()
 
-	devices := []Device{}
+	devices := []models.Device{}
 	for rows.Next() {
-		var device Device
+		var device models.Device
 		if err := rows.Scan(&device.IDDevice, &device.Field, &device.Value); err != nil {
 			return nil, err
 		}
@@ -148,7 +142,7 @@ func GetDevices() ([]Device, error) {
 	return devices, nil
 }
 
-func GetDeviceUpdates() ([]DeviceUpdate, error) {
+func GetDeviceUpdates() ([]models.DeviceUpdate, error) {
 	query := "SELECT ID_DEVICE, UPDATE_DATETIME_UTC FROM DEVICE_UPDATES"
 	rows, err := ExecuteQuery(query)
 	if err != nil {
@@ -156,13 +150,76 @@ func GetDeviceUpdates() ([]DeviceUpdate, error) {
 	}
 	defer rows.Close()
 
-	updates := []DeviceUpdate{}
+	updates := []models.DeviceUpdate{}
 	for rows.Next() {
-		var update DeviceUpdate
+		var update models.DeviceUpdate
 		if err := rows.Scan(&update.IDDevice, &update.UpdateDatetimeUTC); err != nil {
 			return nil, err
 		}
 		updates = append(updates, update)
 	}
 	return updates, nil
+}
+
+func UpdateSettings(newSettings []models.DeviceReadingSetting) (time.Time, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	for _, newSetting := range newSettings {
+		var exists bool
+		err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM DEVICE_READING_SETTINGS WHERE PARAMETER = ? AND ID_DEVICE = ?)", newSetting.Parameter, newSetting.IDDevice).Scan(&exists)
+		if err != nil {
+			tx.Rollback()
+			return time.Time{}, err
+		}
+
+		if exists {
+			_, err = tx.Exec("UPDATE DEVICE_READING_SETTINGS SET PERIOD = ?, ACTIVE = ? WHERE PARAMETER = ? AND ID_DEVICE = ?", newSetting.Period, newSetting.Active, newSetting.Parameter, newSetting.IDDevice)
+		} else {
+			_, err = tx.Exec("INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES (?, ?, ?, ?)", newSetting.IDDevice, newSetting.Parameter, newSetting.Period, newSetting.Active)
+		}
+
+		if err != nil {
+			tx.Rollback()
+			return time.Time{}, err
+		}
+	}
+
+	utcTime := time.Now().UTC()
+	_, err = tx.Exec("INSERT INTO DEVICE_UPDATES (ID_DEVICE, UPDATE_DATETIME_UTC) VALUES (?, ?)", newSettings[0].IDDevice, utcTime)
+	if err != nil {
+		tx.Rollback()
+		return time.Time{}, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	return utcTime, nil
+}
+
+func InsertDeviceInfoFields(devices []models.Device) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	for _, device := range devices {
+		_, err := tx.Exec("INSERT INTO DEVICE (ID_DEVICE, FIELD, VALUE) VALUES (?, ?, ?)", device.IDDevice, device.Field, device.Value)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

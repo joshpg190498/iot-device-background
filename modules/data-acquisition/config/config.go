@@ -5,11 +5,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"ceiot-tf-sbc/modules/data-acquisition/models"
+
 	"github.com/joho/godotenv"
 )
 
 // LoadEnvVars carga las variables de entorno desde el archivo .env y las asigna a Config
-func LoadEnvVars() (*Config, error) {
+func LoadEnvVars() (*models.Config, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("error al obtener el directorio actual: %w", err)
@@ -37,7 +39,7 @@ func LoadEnvVars() (*Config, error) {
 	mqttPubDataTopic := fmt.Sprintf("DEVICES/%s/DATA", deviceID)
 	databasePath := os.Getenv("DB_PATH")
 
-	config := &Config{
+	config := &models.Config{
 		DeviceID:           deviceID,
 		MQTTHost:           mqttHost,
 		MQTTPort:           mqttPort,
