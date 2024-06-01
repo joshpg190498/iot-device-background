@@ -53,49 +53,38 @@ func startMQTTClient() {
 }
 
 func handleMessage(topic string, message []byte) {
-	if topic == cfg.MQTTSubTopics[0] {
+	if topic != cfg.MQTTSubTopics[0] {
+		return
+	}
 
-		//response := nil // stringify({IDDevice: 'cfg.DeviceID', info: [{IDDevice: '', Field: '', Value: ''}], updateDateUtc: 'date_utc'})
-		log.Println("Received message for first topic, updating settings")
-		messagePayload := parseMessageToSettings(message)
+	messagePayload := parseMessageToSettings(message)
 
-		responseConfigPayload := models.ResponseConfigPayload{
-			State:             messagePayload.State,
-			SystemInfo:        []models.Device{},
-			UpdateDatetimeUTC: "",
-		}
-
-		var deviceInfo []models.Device
-		if messagePayload.State == "initialization" {
-			var err error
-			deviceInfo, err = system.GetDeviceInfo(cfg.DeviceID)
-			if err != nil {
-				log.Printf("Error getting DeviceInfo: %v", err)
-				return
-			}
-			err = sqlite.InsertDeviceInfoFields(deviceInfo)
-			if err != nil {
-				log.Printf("Error inserting DeviceInfo: %v", err)
-				return
-			}
-			responseConfigPayload.SystemInfo = deviceInfo
-		}
-		updateSettings(messagePayload.Settings)
-		utcTime, err := sqlite.UpdateSettings(messagePayload.Settings)
-		if err != nil {
-			log.Printf("Error inserting new settings: %v", err)
-			return
-		}
-		responseConfigPayload.UpdateDatetimeUTC = utcTime.String()
+	if messagePayload.State == "initialization" {
+		responseConfigPayload := handleInitialization(messagePayload)
 
 		jsonData, err := json.Marshal(responseConfigPayload)
 		if err != nil {
-			log.Fatalf("Error al convertir a JSON: %s", err)
+			log.Fatalf("Error converting to JSON: %s", err)
 		}
 
 		fmt.Println(string(jsonData))
 
 		mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
+	} else if messagePayload.State == "updating" {
+		log.Println("Received message for updating state, updating settings")
+
+		responseConfigPayload := handleUpdating(messagePayload)
+
+		jsonData, err := json.Marshal(responseConfigPayload)
+		if err != nil {
+			log.Fatalf("Error converting to JSON: %s", err)
+		}
+
+		fmt.Println(string(jsonData))
+
+		mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
+	} else {
+		log.Printf("Received message for unknown state: %s", messagePayload.State)
 	}
 }
 
@@ -106,6 +95,70 @@ func parseMessageToSettings(message []byte) models.MessageConfigPayload {
 		return models.MessageConfigPayload{}
 	}
 	return messageConfigPayload
+}
+
+func handleInitialization(messagePayload models.MessageConfigPayload) models.ResponseConfigPayload {
+	var responseConfigPayload models.ResponseConfigPayload
+	responseConfigPayload.State = messagePayload.State
+
+	deviceUpdate, err := sqlite.GetDeviceUpdates(messagePayload.State)
+	if err != nil {
+		log.Printf("Error getting DeviceUpdates: %v", err)
+		return responseConfigPayload
+	}
+
+	if len(deviceUpdate) >= 1 {
+		responseConfigPayload.SystemInfo = getDeviceInfo()
+		responseConfigPayload.UpdateDatetimeUTC = deviceUpdate[0].UpdateDatetimeUTC
+	} else {
+		responseConfigPayload.SystemInfo = insertAndGetDeviceInfo()
+		updateSettings(messagePayload.Settings)
+		utcTime, err := sqlite.UpdateSettings(messagePayload.State, messagePayload.Settings)
+		if err != nil {
+			log.Printf("Error inserting new settings: %v", err)
+		} else {
+			responseConfigPayload.UpdateDatetimeUTC = utcTime.Format(time.RFC3339)
+		}
+	}
+
+	return responseConfigPayload
+}
+
+func handleUpdating(messagePayload models.MessageConfigPayload) models.ResponseConfigPayload {
+	log.Println("Updating settings...")
+
+	responseConfigPayload := models.ResponseConfigPayload{
+		State:             messagePayload.State,
+		SystemInfo:        getDeviceInfo(),
+		UpdateDatetimeUTC: "",
+	}
+
+	updateSettings(messagePayload.Settings)
+
+	return responseConfigPayload
+}
+
+func getDeviceInfo() []models.Device {
+	deviceInfo, err := sqlite.GetDeviceInfoFields()
+	if err != nil {
+		log.Printf("Error getting DeviceInfo: %v", err)
+		return nil
+	}
+	return deviceInfo
+}
+
+func insertAndGetDeviceInfo() []models.Device {
+	deviceInfo, err := system.GetDeviceInfo(cfg.DeviceID)
+	if err != nil {
+		log.Printf("Error getting DeviceInfo: %v", err)
+		return nil
+	}
+	err = sqlite.InsertDeviceInfoFields(deviceInfo)
+	if err != nil {
+		log.Printf("Error inserting DeviceInfo: %v", err)
+		return nil
+	}
+	return deviceInfo
 }
 
 func updateSettings(newSettings []models.DeviceReadingSetting) {
@@ -135,7 +188,6 @@ func updateDeviceSettings(newSettings []models.DeviceReadingSetting) {
 	}
 
 	settings = nil
-	log.Println(existingSettings)
 	for _, setting := range existingSettings {
 		settings = append(settings, setting)
 	}
@@ -174,6 +226,7 @@ func runPeriodically(index int, stopChan chan struct{}) {
 			mutex.Lock()
 			if settings[index].Active {
 				log.Printf("%s, %d\n", settings[index].Parameter, settings[index].Period)
+				system.GetCpuInfo()
 			}
 			period := time.Duration(settings[index].Period) * time.Second
 			timer.Reset(period)

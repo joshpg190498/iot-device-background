@@ -1,1 +1,1 @@
-{State: "initialization", Settings: [{"IDDevice": "SBC001", "Parameter": "temperatura", "Period": 1, "Active": false}, {"IDDevice": "SBC001", "Parameter": "ram", "Period": 3, "Active": false}, {"IDDevice": "SBC001", "Parameter": "disk", "Period": 1, "Active": true}]}
+{"State": "initialization", "Settings": [{"IDDevice": "SBC001", "Parameter": "temperatura", "Period": 1, "Active": false}, {"IDDevice": "SBC001", "Parameter": "ram", "Period": 3, "Active": false}, {"IDDevice": "SBC001", "Parameter": "disk", "Period": 1, "Active": true}]}

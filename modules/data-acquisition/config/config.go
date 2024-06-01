@@ -32,7 +32,7 @@ func LoadEnvVars() (*models.Config, error) {
 	mqttClientID := fmt.Sprintf("mqtt-sbc-data-acquisition-%s", deviceID)
 	mqttBroker := fmt.Sprintf("tcp://%s:%s", mqttHost, mqttPort)
 
-	mqttSubConfigTopic := fmt.Sprintf("SERVER/DEVICES/%s/CONFIG", deviceID)
+	mqttSubConfigTopic := fmt.Sprintf("SERVER/CONFIG/%s", deviceID)
 	mqttSubTopics := []string{mqttSubConfigTopic}
 
 	mqttPubConfigTopic := fmt.Sprintf("DEVICES/%s/CONFIG", deviceID)

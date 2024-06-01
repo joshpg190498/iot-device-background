@@ -27,6 +27,7 @@ type Device struct {
 
 type DeviceUpdate struct {
 	IDDevice          string
+	State             string
 	UpdateDatetimeUTC string
 }
 

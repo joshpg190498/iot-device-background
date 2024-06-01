@@ -22,22 +22,6 @@ func ConnectDB(dbPath string) (*sql.DB, error) {
 	return database, nil
 }
 
-func ExecuteNonQuery(query string) (bool, error) {
-	_, err := db.Exec(query)
-	if err != nil {
-		return false, err
-	}
-	return true, nil
-}
-
-func ExecuteQuery(query string, args ...interface{}) (*sql.Rows, error) {
-	rows, err := db.Query(query, args...)
-	if err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-
 func CloseDB() error {
 	return db.Close()
 }
@@ -66,7 +50,7 @@ func InitDB(dbPath string) error {
 		}
 		db = database
 
-		if _, err := ExecuteNonQuery(QueryCreateTables()); err != nil {
+		if _, err := db.Exec(QueryCreateTables()); err != nil {
 			log.Println("Error creando tablas en DB.", err)
 			return err
 		}
@@ -83,9 +67,10 @@ func InitDB(dbPath string) error {
 
 func QueryCreateTables() string {
 	return `CREATE TABLE IF NOT EXISTS DEVICE (
-		ID_DEVICE TEXT PRIMARY KEY,
+		ID_DEVICE TEXT,
 		FIELD TEXT,
-		VALUE TEXT
+		VALUE TEXT,
+		PRIMARY KEY (ID_DEVICE, FIELD)
 	);
 
 	CREATE TABLE IF NOT EXISTS DEVICE_READING_SETTINGS (
@@ -93,12 +78,12 @@ func QueryCreateTables() string {
 		PARAMETER TEXT,
 		PERIOD INTEGER,
 		ACTIVE BOOLEAN,
-		PRIMARY KEY (ID_DEVICE, PARAMETER),
-		FOREIGN KEY (ID_DEVICE) REFERENCES DEVICE(ID_DEVICE)
+		PRIMARY KEY (ID_DEVICE, PARAMETER)
 	);
 	
 	CREATE TABLE IF NOT EXISTS DEVICE_UPDATES (
 		ID_DEVICE TEXT,
+		STATE TEXT,
 		UPDATE_DATETIME_UTC TEXT
 	);
 	`
@@ -106,7 +91,7 @@ func QueryCreateTables() string {
 
 func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	query := "SELECT ID_DEVICE, PARAMETER, PERIOD, ACTIVE FROM DEVICE_READING_SETTINGS"
-	rows, err := ExecuteQuery(query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +110,7 @@ func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 
 func GetDeviceInfoFields() ([]models.Device, error) {
 	query := "SELECT ID_DEVICE, FIELD, VALUE FROM DEVICE"
-	rows, err := ExecuteQuery(query)
+	rows, err := db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -142,9 +127,9 @@ func GetDeviceInfoFields() ([]models.Device, error) {
 	return devices, nil
 }
 
-func GetDeviceUpdates() ([]models.DeviceUpdate, error) {
-	query := "SELECT ID_DEVICE, UPDATE_DATETIME_UTC FROM DEVICE_UPDATES"
-	rows, err := ExecuteQuery(query)
+func GetDeviceUpdates(state string) ([]models.DeviceUpdate, error) {
+	query := "SELECT ID_DEVICE, STATE, UPDATE_DATETIME_UTC FROM DEVICE_UPDATES WHERE STATE = ? "
+	rows, err := db.Query(query, state)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +138,7 @@ func GetDeviceUpdates() ([]models.DeviceUpdate, error) {
 	updates := []models.DeviceUpdate{}
 	for rows.Next() {
 		var update models.DeviceUpdate
-		if err := rows.Scan(&update.IDDevice, &update.UpdateDatetimeUTC); err != nil {
+		if err := rows.Scan(&update.IDDevice, &update.State, &update.UpdateDatetimeUTC); err != nil {
 			return nil, err
 		}
 		updates = append(updates, update)
@@ -161,7 +146,7 @@ func GetDeviceUpdates() ([]models.DeviceUpdate, error) {
 	return updates, nil
 }
 
-func UpdateSettings(newSettings []models.DeviceReadingSetting) (time.Time, error) {
+func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (time.Time, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return time.Time{}, err
@@ -188,7 +173,8 @@ func UpdateSettings(newSettings []models.DeviceReadingSetting) (time.Time, error
 	}
 
 	utcTime := time.Now().UTC()
-	_, err = tx.Exec("INSERT INTO DEVICE_UPDATES (ID_DEVICE, UPDATE_DATETIME_UTC) VALUES (?, ?)", newSettings[0].IDDevice, utcTime)
+	formattedTime := utcTime.Format(time.RFC3339)
+	_, err = tx.Exec("INSERT INTO DEVICE_UPDATES (ID_DEVICE, STATE, UPDATE_DATETIME_UTC) VALUES (?, ?, ?)", newSettings[0].IDDevice, state, formattedTime)
 	if err != nil {
 		tx.Rollback()
 		return time.Time{}, err

@@ -2,10 +2,14 @@ package system
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/disk"
 	"github.com/shirou/gopsutil/host"
+	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/shirou/gopsutil/net"
 
 	models "ceiot-tf-sbc/modules/data-acquisition/models"
 )
@@ -58,4 +62,24 @@ func GetDeviceInfo(deviceID string) ([]models.Device, error) {
 	})
 
 	return devices, nil
+}
+
+func GetCpuInfo() {
+	cpuUsage, _ := cpu.Percent(0, false)
+	log.Printf("   Uso de CPU: %.2f%%\n", cpuUsage[0])
+	memInfo, _ := mem.VirtualMemory()
+	fmt.Printf("   Total: %v, Libre: %v, Usado: %v\n", memInfo.Total, memInfo.Free, memInfo.Used)
+	diskInfo, _ := disk.Partitions(false)
+	log.Println(diskInfo)
+	netInfo, _ := net.IOCounters(false)
+	for _, net := range netInfo {
+		fmt.Printf("   Nombre: %v, Bytes recibidos: %v, Bytes enviados: %v\n", net.Name, net.BytesRecv, net.BytesSent)
+	}
+	avg, err := load.Avg()
+	if err != nil {
+		fmt.Printf("Error obteniendo la carga promedio: %v", err)
+		return
+	}
+
+	log.Printf("Load Average - 1 min: %.2f, 5 min: %.2f, 15 min: %.2f\n", avg.Load1, avg.Load5, avg.Load15)
 }
