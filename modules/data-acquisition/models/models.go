@@ -41,3 +41,10 @@ type ResponseConfigPayload struct {
 	SystemInfo        []Device
 	UpdateDatetimeUTC string
 }
+
+type DataPayload struct {
+	IDDevice          string
+	Parameter         string
+	Data              any
+	UpdateDatetimeUTC string
+}

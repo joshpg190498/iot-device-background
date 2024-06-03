@@ -1,0 +1,1 @@
+{"State": "updating", "Settings": [{"IDDevice": "SBC001", "Parameter": "ram", "Period": 5, "Active": true}, {"IDDevice": "SBC001", "Parameter": "disk", "Period": 20, "Active": true}, {"IDDevice": "SBC001", "Parameter": "network", "Period": 1, "Active": true}]}

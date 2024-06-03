@@ -23,13 +23,9 @@ var (
 
 func main() {
 	loadConfiguration()
-
-	devices, err := system.GetDeviceInfo(cfg.DeviceID)
-	log.Println(devices, err)
-
-	initializeDatabase()
 	startMQTTClient()
-	startDataAcquisition()
+	initializeDatabase()
+	time.AfterFunc(3*time.Second, startDataAcquisition)
 	select {}
 }
 
@@ -125,16 +121,14 @@ func handleInitialization(messagePayload models.MessageConfigPayload) models.Res
 }
 
 func handleUpdating(messagePayload models.MessageConfigPayload) models.ResponseConfigPayload {
-	log.Println("Updating settings...")
-
-	responseConfigPayload := models.ResponseConfigPayload{
-		State:             messagePayload.State,
-		SystemInfo:        getDeviceInfo(),
-		UpdateDatetimeUTC: "",
-	}
-
+	var responseConfigPayload models.ResponseConfigPayload
 	updateSettings(messagePayload.Settings)
-
+	utcTime, err := sqlite.UpdateSettings(messagePayload.State, messagePayload.Settings)
+	if err != nil {
+		log.Printf("Error inserting new settings: %v", err)
+	} else {
+		responseConfigPayload.UpdateDatetimeUTC = utcTime.Format(time.RFC3339)
+	}
 	return responseConfigPayload
 }
 
@@ -224,13 +218,52 @@ func runPeriodically(index int, stopChan chan struct{}) {
 			return
 		case <-timer.C:
 			mutex.Lock()
-			if settings[index].Active {
-				log.Printf("%s, %d\n", settings[index].Parameter, settings[index].Period)
-				system.GetCpuInfo()
+			if !settings[index].Active {
+				mutex.Unlock()
+				continue
 			}
+
+			dataPayload, err := collectData(index)
+			if err != nil {
+				log.Println("Error:", err)
+				mutex.Unlock()
+				continue
+			}
+
+			err = publishData(dataPayload)
+			if err != nil {
+				log.Println("Error converting to JSON:", err)
+			}
+
+			mutex.Unlock()
 			period := time.Duration(settings[index].Period) * time.Second
 			timer.Reset(period)
-			mutex.Unlock()
 		}
 	}
+}
+
+func collectData(index int) (models.DataPayload, error) {
+	var dataPayload models.DataPayload
+	utcTime := time.Now().UTC()
+	formattedTime := utcTime.Format(time.RFC3339)
+	data, err := system.CallFunctionByName(settings[index].Parameter)
+	if err != nil {
+		return dataPayload, err
+	}
+
+	dataPayload.IDDevice = cfg.DeviceID
+	dataPayload.Parameter = settings[index].Parameter
+	dataPayload.Data = data
+	dataPayload.UpdateDatetimeUTC = formattedTime
+	return dataPayload, nil
+}
+
+func publishData(dataPayload models.DataPayload) error {
+	jsonData, err := json.Marshal(dataPayload)
+	if err != nil {
+		return err
+	}
+
+	mqtt.PublishData(cfg.MQTTPubDataTopic, string(jsonData))
+	return nil
 }
