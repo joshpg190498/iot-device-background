@@ -10,7 +10,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// LoadEnvVars carga las variables de entorno desde el archivo .env y las asigna a Config
 func LoadEnvVars() (*models.Config, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -30,7 +29,7 @@ func LoadEnvVars() (*models.Config, error) {
 	mqttPort := os.Getenv("MQTT_PORT")
 
 	mqttClientID := fmt.Sprintf("mqtt-sbc-data-acquisition-%s", deviceID)
-	mqttBroker := fmt.Sprintf("tcp://%s:%s", mqttHost, mqttPort)
+	mqttBroker := fmt.Sprintf("ssl://%s:%s", mqttHost, mqttPort)
 
 	mqttSubConfigTopic := fmt.Sprintf("SERVER/CONFIG/%s", deviceID)
 	mqttSubTopics := []string{mqttSubConfigTopic}

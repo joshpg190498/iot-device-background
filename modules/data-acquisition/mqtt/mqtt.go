@@ -1,7 +1,13 @@
 package mqtt
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -46,6 +52,36 @@ func ConnectClient(DeviceID string, MQTTBroker string, MQTTClientID string, MQTT
 		}
 	}
 
+	caFile, certFile, keyFile, err := getCertPaths()
+	if err != nil {
+		log.Fatalf("Error encontrando certificados: %v", err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCert, err := ioutil.ReadFile(caFile)
+	if err != nil {
+		log.Fatalf("Error cargando certificado CA: %v", err)
+	}
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		log.Fatalf("Error cargando certificado y clave: %v", err)
+	}
+
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
+	tlsConfig := &tls.Config{
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: true,
+		ClientCAs:          nil,
+		ClientAuth:         tls.NoClientCert,
+	}
+
 	opts = mqtt.NewClientOptions().
 		AddBroker(MQTTBroker).
 		SetClientID(MQTTClientID).
@@ -54,7 +90,8 @@ func ConnectClient(DeviceID string, MQTTBroker string, MQTTClientID string, MQTT
 		SetAutoReconnect(true).
 		SetMaxReconnectInterval(2 * time.Second).
 		SetConnectRetry(true).
-		SetConnectRetryInterval(2 * time.Second)
+		SetConnectRetryInterval(2 * time.Second).
+		SetTLSConfig(tlsConfig)
 
 	client = mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
@@ -78,4 +115,30 @@ func PublishData(topic string, data string) {
 	} else {
 		log.Printf("Mensaje publicado en el tópico %s: %s\n", topic, data)
 	}
+}
+
+func getCertPaths() (caPath, clientCertPath, clientKeyPath string, err error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", "", "", err
+	}
+
+	// Retroceder un nivel para acceder a la carpeta certs
+	certsDir := filepath.Join(dir, "..", "..", "certs")
+
+	caPath = filepath.Join(certsDir, "ca-crt.pem")
+	clientCertPath = filepath.Join(certsDir, "client-crt.pem")
+	clientKeyPath = filepath.Join(certsDir, "client-key.pem")
+
+	if _, err := os.Stat(caPath); err != nil {
+		return "", "", "", fmt.Errorf("error: CA certificate file not found: %v", err)
+	}
+	if _, err := os.Stat(clientCertPath); err != nil {
+		return "", "", "", fmt.Errorf("error: client certificate file not found: %v", err)
+	}
+	if _, err := os.Stat(clientKeyPath); err != nil {
+		return "", "", "", fmt.Errorf("error: client key file not found: %v", err)
+	}
+
+	return caPath, clientCertPath, clientKeyPath, nil
 }
