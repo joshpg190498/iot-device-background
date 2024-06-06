@@ -108,7 +108,7 @@ func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	return settings, nil
 }
 
-func GetDeviceInfoFields() ([]models.Device, error) {
+func GetDeviceInfoFields() ([]models.DeviceInfo, error) {
 	query := "SELECT ID_DEVICE, FIELD, VALUE FROM DEVICE"
 	rows, err := db.Query(query)
 	if err != nil {
@@ -116,9 +116,9 @@ func GetDeviceInfoFields() ([]models.Device, error) {
 	}
 	defer rows.Close()
 
-	devices := []models.Device{}
+	devices := []models.DeviceInfo{}
 	for rows.Next() {
-		var device models.Device
+		var device models.DeviceInfo
 		if err := rows.Scan(&device.IDDevice, &device.Field, &device.Value); err != nil {
 			return nil, err
 		}
@@ -188,7 +188,7 @@ func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (ti
 	return utcTime, nil
 }
 
-func InsertDeviceInfoFields(devices []models.Device) error {
+func InsertDeviceInfoFields(devices []models.DeviceInfo) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err

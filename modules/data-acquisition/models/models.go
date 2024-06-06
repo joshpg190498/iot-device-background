@@ -19,7 +19,7 @@ type DeviceReadingSetting struct {
 	Active    bool
 }
 
-type Device struct {
+type DeviceInfo struct {
 	IDDevice string
 	Field    string
 	Value    string
@@ -38,7 +38,7 @@ type MessageConfigPayload struct {
 
 type ResponseConfigPayload struct {
 	State             string
-	SystemInfo        []Device
+	SystemInfo        []DeviceInfo
 	UpdateDatetimeUTC string
 }
 

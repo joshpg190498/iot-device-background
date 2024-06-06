@@ -132,7 +132,7 @@ func handleUpdating(messagePayload models.MessageConfigPayload) models.ResponseC
 	return responseConfigPayload
 }
 
-func getDeviceInfo() []models.Device {
+func getDeviceInfo() []models.DeviceInfo {
 	deviceInfo, err := sqlite.GetDeviceInfoFields()
 	if err != nil {
 		log.Printf("Error getting DeviceInfo: %v", err)
@@ -141,7 +141,7 @@ func getDeviceInfo() []models.Device {
 	return deviceInfo
 }
 
-func insertAndGetDeviceInfo() []models.Device {
+func insertAndGetDeviceInfo() []models.DeviceInfo {
 	deviceInfo, err := system.GetDeviceInfo(cfg.DeviceID)
 	if err != nil {
 		log.Printf("Error getting DeviceInfo: %v", err)
