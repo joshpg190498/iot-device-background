@@ -52,107 +52,98 @@ func handleMessage(topic string, message []byte) {
 	if topic != cfg.MQTTSubTopics[0] {
 		return
 	}
-
 	messagePayload := parseMessageToSettings(message)
 
-	if messagePayload.State == "initialization" {
-		responseConfigPayload := handleInitialization(messagePayload)
+	var responseConfigPayload models.ResponseConfigPayload
 
-		jsonData, err := json.Marshal(responseConfigPayload)
-		if err != nil {
-			log.Fatalf("Error converting to JSON: %s", err)
-		}
-
-		fmt.Println(string(jsonData))
-
-		mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
-	} else if messagePayload.State == "updating" {
-		log.Println("Received message for updating state, updating settings")
-
-		responseConfigPayload := handleUpdating(messagePayload)
-
-		jsonData, err := json.Marshal(responseConfigPayload)
-		if err != nil {
-			log.Fatalf("Error converting to JSON: %s", err)
-		}
-
-		fmt.Println(string(jsonData))
-
-		mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
-	} else {
-		log.Printf("Received message for unknown state: %s", messagePayload.State)
+	responseConfigPayload, err := handleUpdate(messagePayload)
+	if err != nil {
+		return
 	}
+
+	jsonData, err := json.Marshal(responseConfigPayload)
+	if err != nil {
+		log.Printf("Error converting to JSON: %s", err)
+		return
+	}
+
+	mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
 }
 
 func parseMessageToSettings(message []byte) models.MessageConfigPayload {
 	var messageConfigPayload models.MessageConfigPayload
 	if err := json.Unmarshal(message, &messageConfigPayload); err != nil {
 		log.Printf("Error parsing message: %v", err)
-		return models.MessageConfigPayload{}
 	}
 	return messageConfigPayload
 }
 
-func handleInitialization(messagePayload models.MessageConfigPayload) models.ResponseConfigPayload {
+func handleUpdate(messagePayload models.MessageConfigPayload) (models.ResponseConfigPayload, error) {
 	var responseConfigPayload models.ResponseConfigPayload
-	responseConfigPayload.State = messagePayload.State
+	responseConfigPayload.Type = messagePayload.Type
+	responseConfigPayload.DeviceID = messagePayload.DeviceID
+	responseConfigPayload.HashUpdate = messagePayload.HashUpdate
 
-	deviceUpdate, err := sqlite.GetDeviceUpdates(messagePayload.State)
+	if responseConfigPayload.Type != "startup" && responseConfigPayload.Type != "update" {
+		return models.ResponseConfigPayload{}, fmt.Errorf("received message for unknown state: %s", messagePayload.Type)
+	}
+
+	deviceUpdate, err := sqlite.GetDeviceUpdates(messagePayload.Type, messagePayload.HashUpdate)
 	if err != nil {
 		log.Printf("Error getting DeviceUpdates: %v", err)
-		return responseConfigPayload
+		return models.ResponseConfigPayload{}, err
 	}
 
 	if len(deviceUpdate) >= 1 {
-		responseConfigPayload.SystemInfo = getDeviceInfo()
+		if messagePayload.Type == "startup" {
+			responseConfigPayload.MainDeviceInformation = getMainDeviceInformation()
+		}
 		responseConfigPayload.UpdateDatetimeUTC = deviceUpdate[0].UpdateDatetimeUTC
 	} else {
-		responseConfigPayload.SystemInfo = insertAndGetDeviceInfo()
-		updateSettings(messagePayload.Settings)
-		utcTime, err := sqlite.UpdateSettings(messagePayload.State, messagePayload.Settings)
-		if err != nil {
-			log.Printf("Error inserting new settings: %v", err)
-		} else {
-			responseConfigPayload.UpdateDatetimeUTC = utcTime.Format(time.RFC3339)
+		if messagePayload.Type == "startup" {
+			responseConfigPayload.MainDeviceInformation = getAndInsertDeviceInfo()
 		}
+		updateAndLogSettings(messagePayload, &responseConfigPayload)
 	}
 
-	return responseConfigPayload
+	if responseConfigPayload.UpdateDatetimeUTC == "" {
+		return models.ResponseConfigPayload{}, fmt.Errorf("internal error while system updates configuration")
+	}
+
+	return responseConfigPayload, nil
 }
 
-func handleUpdating(messagePayload models.MessageConfigPayload) models.ResponseConfigPayload {
-	var responseConfigPayload models.ResponseConfigPayload
+func updateAndLogSettings(messagePayload models.MessageConfigPayload, responseConfigPayload *models.ResponseConfigPayload) {
 	updateSettings(messagePayload.Settings)
-	utcTime, err := sqlite.UpdateSettings(messagePayload.State, messagePayload.Settings)
+	utcTime, err := sqlite.UpdateSettings(messagePayload.HashUpdate, messagePayload.Type, messagePayload.Settings)
 	if err != nil {
 		log.Printf("Error inserting new settings: %v", err)
 	} else {
 		responseConfigPayload.UpdateDatetimeUTC = utcTime.Format(time.RFC3339)
 	}
-	return responseConfigPayload
 }
 
-func getDeviceInfo() []models.DeviceInfo {
-	deviceInfo, err := sqlite.GetDeviceInfoFields()
+func getMainDeviceInformation() map[string]interface{} {
+	mainDeviceInformation, err := sqlite.GetMainDeviceInformation()
 	if err != nil {
-		log.Printf("Error getting DeviceInfo: %v", err)
+		log.Printf("Error getting MainDeviceInformation: %v", err)
 		return nil
 	}
-	return deviceInfo
+	return mainDeviceInformation
 }
 
-func insertAndGetDeviceInfo() []models.DeviceInfo {
-	deviceInfo, err := system.GetDeviceInfo(cfg.DeviceID)
+func getAndInsertDeviceInfo() map[string]interface{} {
+	mainDeviceInformation, err := system.CallFunctionByName("main_info")
 	if err != nil {
-		log.Printf("Error getting DeviceInfo: %v", err)
+		log.Printf("Error getting MainDeviceInformation: %v", err)
 		return nil
 	}
-	err = sqlite.InsertDeviceInfoFields(deviceInfo)
+	err = sqlite.InsertMainDeviceInformation(cfg.DeviceID, mainDeviceInformation)
 	if err != nil {
-		log.Printf("Error inserting DeviceInfo: %v", err)
+		log.Printf("Error inserting MainDeviceInformation: %v", err)
 		return nil
 	}
-	return deviceInfo
+	return mainDeviceInformation
 }
 
 func updateSettings(newSettings []models.DeviceReadingSetting) {
@@ -251,7 +242,7 @@ func collectData(index int) (models.DataPayload, error) {
 		return dataPayload, err
 	}
 
-	dataPayload.IDDevice = cfg.DeviceID
+	dataPayload.DeviceID = cfg.DeviceID
 	dataPayload.Parameter = settings[index].Parameter
 	dataPayload.Data = data
 	dataPayload.UpdateDatetimeUTC = formattedTime

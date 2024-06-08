@@ -66,11 +66,15 @@ func InitDB(dbPath string) error {
 }
 
 func QueryCreateTables() string {
-	return `CREATE TABLE IF NOT EXISTS DEVICE (
-		ID_DEVICE TEXT,
-		FIELD TEXT,
-		VALUE TEXT,
-		PRIMARY KEY (ID_DEVICE, FIELD)
+	return `CREATE TABLE IF NOT EXISTS MAIN_DEVICE_INFORMATION (
+		ID_DEVICE TEXT NOT NULL,
+		HOSTNAME TEXT,
+		PROCESSOR TEXT,
+		RAM TEXT,
+		HOSTID TEXT,
+		OS TEXT,
+		KERNEL TEXT,
+		PRIMARY KEY (ID_DEVICE)
 	);
 
 	CREATE TABLE IF NOT EXISTS DEVICE_READING_SETTINGS (
@@ -83,8 +87,10 @@ func QueryCreateTables() string {
 	
 	CREATE TABLE IF NOT EXISTS DEVICE_UPDATES (
 		ID_DEVICE TEXT,
-		STATE TEXT,
-		UPDATE_DATETIME_UTC TEXT
+		HASH_UPDATE TEXT,
+		TYPE TEXT,
+		UPDATE_DATETIME_UTC TEXT,
+		PRIMARY KEY (ID_DEVICE, HASH_UPDATE)
 	);
 	`
 }
@@ -100,7 +106,7 @@ func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	settings := []models.DeviceReadingSetting{}
 	for rows.Next() {
 		var setting models.DeviceReadingSetting
-		if err := rows.Scan(&setting.IDDevice, &setting.Parameter, &setting.Period, &setting.Active); err != nil {
+		if err := rows.Scan(&setting.DeviceID, &setting.Parameter, &setting.Period, &setting.Active); err != nil {
 			return nil, err
 		}
 		settings = append(settings, setting)
@@ -108,28 +114,38 @@ func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	return settings, nil
 }
 
-func GetDeviceInfoFields() ([]models.DeviceInfo, error) {
-	query := "SELECT ID_DEVICE, FIELD, VALUE FROM DEVICE"
-	rows, err := db.Query(query)
+func GetMainDeviceInformation() (map[string]interface{}, error) {
+	query := "SELECT HOSTNAME, PROCESSOR, RAM, HOSTID, OS, KERNEL FROM MAIN_DEVICE_INFORMATION"
+	row := db.QueryRow(query)
+
+	var hostname, processor, ram, hostID, os, kernel string
+	err := row.Scan(
+		&hostname,
+		&processor,
+		&ram,
+		&hostID,
+		&os,
+		&kernel,
+	)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	devices := []models.DeviceInfo{}
-	for rows.Next() {
-		var device models.DeviceInfo
-		if err := rows.Scan(&device.IDDevice, &device.Field, &device.Value); err != nil {
-			return nil, err
-		}
-		devices = append(devices, device)
+	mainDeviceInformation := map[string]interface{}{
+		"hostname":  hostname,
+		"processor": processor,
+		"ram":       ram,
+		"hostID":    hostID,
+		"os":        os,
+		"kernel":    kernel,
 	}
-	return devices, nil
+
+	return mainDeviceInformation, nil
 }
 
-func GetDeviceUpdates(state string) ([]models.DeviceUpdate, error) {
-	query := "SELECT ID_DEVICE, STATE, UPDATE_DATETIME_UTC FROM DEVICE_UPDATES WHERE STATE = ? "
-	rows, err := db.Query(query, state)
+func GetDeviceUpdates(updateType string, hashUpdate string) ([]models.DeviceUpdate, error) {
+	query := "SELECT ID_DEVICE, HASH_UPDATE, TYPE, UPDATE_DATETIME_UTC FROM DEVICE_UPDATES WHERE TYPE = ? AND HASH_UPDATE = ?"
+	rows, err := db.Query(query, updateType, hashUpdate)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +154,7 @@ func GetDeviceUpdates(state string) ([]models.DeviceUpdate, error) {
 	updates := []models.DeviceUpdate{}
 	for rows.Next() {
 		var update models.DeviceUpdate
-		if err := rows.Scan(&update.IDDevice, &update.State, &update.UpdateDatetimeUTC); err != nil {
+		if err := rows.Scan(&update.DeviceID, &update.HashUpdate, &update.Type, &update.UpdateDatetimeUTC); err != nil {
 			return nil, err
 		}
 		updates = append(updates, update)
@@ -146,7 +162,7 @@ func GetDeviceUpdates(state string) ([]models.DeviceUpdate, error) {
 	return updates, nil
 }
 
-func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (time.Time, error) {
+func UpdateSettings(hashUpdate string, updateType string, newSettings []models.DeviceReadingSetting) (time.Time, error) {
 	tx, err := db.Begin()
 	if err != nil {
 		return time.Time{}, err
@@ -154,16 +170,16 @@ func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (ti
 
 	for _, newSetting := range newSettings {
 		var exists bool
-		err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM DEVICE_READING_SETTINGS WHERE PARAMETER = ? AND ID_DEVICE = ?)", newSetting.Parameter, newSetting.IDDevice).Scan(&exists)
+		err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM DEVICE_READING_SETTINGS WHERE PARAMETER = ? AND ID_DEVICE = ?)", newSetting.Parameter, newSetting.DeviceID).Scan(&exists)
 		if err != nil {
 			tx.Rollback()
 			return time.Time{}, err
 		}
 
 		if exists {
-			_, err = tx.Exec("UPDATE DEVICE_READING_SETTINGS SET PERIOD = ?, ACTIVE = ? WHERE PARAMETER = ? AND ID_DEVICE = ?", newSetting.Period, newSetting.Active, newSetting.Parameter, newSetting.IDDevice)
+			_, err = tx.Exec("UPDATE DEVICE_READING_SETTINGS SET PERIOD = ?, ACTIVE = ? WHERE PARAMETER = ? AND ID_DEVICE = ?", newSetting.Period, newSetting.Active, newSetting.Parameter, newSetting.DeviceID)
 		} else {
-			_, err = tx.Exec("INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES (?, ?, ?, ?)", newSetting.IDDevice, newSetting.Parameter, newSetting.Period, newSetting.Active)
+			_, err = tx.Exec("INSERT INTO DEVICE_READING_SETTINGS (ID_DEVICE, PARAMETER, PERIOD, ACTIVE) VALUES (?, ?, ?, ?)", newSetting.DeviceID, newSetting.Parameter, newSetting.Period, newSetting.Active)
 		}
 
 		if err != nil {
@@ -174,7 +190,7 @@ func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (ti
 
 	utcTime := time.Now().UTC()
 	formattedTime := utcTime.Format(time.RFC3339)
-	_, err = tx.Exec("INSERT INTO DEVICE_UPDATES (ID_DEVICE, STATE, UPDATE_DATETIME_UTC) VALUES (?, ?, ?)", newSettings[0].IDDevice, state, formattedTime)
+	_, err = tx.Exec("INSERT INTO DEVICE_UPDATES (ID_DEVICE, HASH_UPDATE, TYPE, UPDATE_DATETIME_UTC) VALUES (?, ?, ?, ?)", newSettings[0].DeviceID, hashUpdate, updateType, formattedTime)
 	if err != nil {
 		tx.Rollback()
 		return time.Time{}, err
@@ -188,21 +204,30 @@ func UpdateSettings(state string, newSettings []models.DeviceReadingSetting) (ti
 	return utcTime, nil
 }
 
-func InsertDeviceInfoFields(devices []models.DeviceInfo) error {
-	tx, err := db.Begin()
-	if err != nil {
-		return err
+func InsertMainDeviceInformation(DeviceID string, mainDeviceInformation map[string]interface{}) error {
+	log.Println(mainDeviceInformation)
+	for key := range mainDeviceInformation {
+		log.Println("Key:", key)
 	}
-
-	for _, device := range devices {
-		_, err := tx.Exec("INSERT INTO DEVICE (ID_DEVICE, FIELD, VALUE) VALUES (?, ?, ?)", device.IDDevice, device.Field, device.Value)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	err = tx.Commit()
+	_, err := db.Exec(`
+		INSERT INTO MAIN_DEVICE_INFORMATION (
+			ID_DEVICE, 
+			HOSTNAME, 
+			PROCESSOR, 
+			RAM, 
+			HOSTID, 
+			OS, 
+			KERNEL
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+	`,
+		DeviceID,
+		mainDeviceInformation["hostname"],
+		mainDeviceInformation["processor"],
+		mainDeviceInformation["ram"],
+		mainDeviceInformation["hostID"],
+		mainDeviceInformation["os"],
+		mainDeviceInformation["kernel"],
+	)
 	if err != nil {
 		return err
 	}

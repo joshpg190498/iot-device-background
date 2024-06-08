@@ -1,1 +1,1 @@
-{"State": "configuration", "Settings": [{"IDDevice": "SBC001", "Parameter": "ram", "Period": 5, "Active": false}, {"IDDevice": "SBC001", "Parameter": "disk", "Period": 20, "Active": false}, {"IDDevice": "SBC001", "Parameter": "network", "Period": 1, "Active": true}]}
+{"DeviceID": "SBC001", "HashUpdate": "abc123456", "Type": "startup", "Settings": [{"DeviceID": "SBC001", "Parameter": "net_info", "Period": 7, "Active": false}, {"DeviceID": "SBC001", "Parameter": "disk", "Period": 20, "Active": true}, {"DeviceID": "SBC001", "Parameter": "ram", "Period": 5, "Active": true}]}

@@ -12,60 +12,34 @@ import (
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/shirou/gopsutil/net"
-
-	models "ceiot-tf-sbc/modules/data-acquisition/models"
 )
 
 type FuncType func() (map[string]interface{}, error)
 
-func GetDeviceInfo(deviceID string) ([]models.Device, error) {
-	var devices []models.Device
-
+func getMainInfo() (map[string]interface{}, error) {
 	hostInfo, err := host.Info()
 	if err != nil {
 		return nil, err
 	}
 
-	cpuInfo, _ := cpu.Info()
-
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "hostname",
-		Value:    hostInfo.Hostname,
-	})
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "processor",
-		Value:    fmt.Sprintf("%s %s @ %.2f GHz", cpuInfo[0].ModelName, cpuInfo[0].VendorID, cpuInfo[0].Mhz/1000.0),
-	})
+	cpuInfo, err := cpu.Info()
+	if err != nil {
+		return nil, err
+	}
 
 	memInfo, err := mem.VirtualMemory()
 	if err != nil {
 		return nil, err
 	}
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "ram",
-		Value:    fmt.Sprintf("%.2f GB", float64(memInfo.Total)/1024/1024/1024),
-	})
 
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "hostID",
-		Value:    hostInfo.HostID,
-	})
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "os",
-		Value:    fmt.Sprintf("%s, %s", hostInfo.OS, hostInfo.PlatformFamily),
-	})
-	devices = append(devices, models.Device{
-		IDDevice: deviceID,
-		Field:    "kernel",
-		Value:    hostInfo.KernelVersion,
-	})
-
-	return devices, nil
+	return map[string]interface{}{
+		"hostname":  hostInfo.Hostname,
+		"processor": fmt.Sprintf("%s %s @ %.2f GHz", cpuInfo[0].ModelName, cpuInfo[0].VendorID, cpuInfo[0].Mhz/1000.0),
+		"ram":       fmt.Sprintf("%.2f GB", float64(memInfo.Total)/1024/1024/1024), // MB
+		"hostID":    hostInfo.HostID,
+		"os":        fmt.Sprintf("%s, %s", hostInfo.OS, hostInfo.PlatformFamily),
+		"kernel":    hostInfo.KernelVersion,
+	}, nil
 }
 
 func getRAMUsage() (map[string]interface{}, error) {
@@ -211,6 +185,7 @@ func getLoadAverage() (map[string]interface{}, error) {
 
 func getSystemHealthFunctions() map[string]FuncType {
 	return map[string]FuncType{
+		"main_info":   getMainInfo,
 		"ram":         getRAMUsage,
 		"disk":        getDiskUsage,
 		"net_stats":   getNetworkStats,

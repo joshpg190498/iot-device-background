@@ -13,37 +13,36 @@ type Config struct {
 }
 
 type DeviceReadingSetting struct {
-	IDDevice  string
+	DeviceID  string
 	Parameter string
 	Period    int
 	Active    bool
 }
 
-type DeviceInfo struct {
-	IDDevice string
-	Field    string
-	Value    string
-}
-
 type DeviceUpdate struct {
-	IDDevice          string
-	State             string
+	DeviceID          string
+	HashUpdate        string
+	Type              string
 	UpdateDatetimeUTC string
 }
 
 type MessageConfigPayload struct {
-	State    string
-	Settings []DeviceReadingSetting
+	DeviceID   string
+	HashUpdate string
+	Type       string
+	Settings   []DeviceReadingSetting
 }
 
 type ResponseConfigPayload struct {
-	State             string
-	SystemInfo        []DeviceInfo
-	UpdateDatetimeUTC string
+	DeviceID              string
+	HashUpdate            string
+	Type                  string
+	MainDeviceInformation any
+	UpdateDatetimeUTC     string
 }
 
 type DataPayload struct {
-	IDDevice          string
+	DeviceID          string
 	Parameter         string
 	Data              any
 	UpdateDatetimeUTC string
