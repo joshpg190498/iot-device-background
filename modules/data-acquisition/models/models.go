@@ -42,8 +42,8 @@ type ResponseConfigPayload struct {
 }
 
 type DataPayload struct {
-	DeviceID          string
-	Parameter         string
-	Data              any
-	UpdateDatetimeUTC string
+	DeviceID       string
+	Parameter      string
+	Data           any
+	CollectedAtUtc string
 }

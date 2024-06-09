@@ -245,7 +245,7 @@ func collectData(index int) (models.DataPayload, error) {
 	dataPayload.DeviceID = cfg.DeviceID
 	dataPayload.Parameter = settings[index].Parameter
 	dataPayload.Data = data
-	dataPayload.UpdateDatetimeUTC = formattedTime
+	dataPayload.CollectedAtUtc = formattedTime
 	return dataPayload, nil
 }
 
