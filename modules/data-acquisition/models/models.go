@@ -1,7 +1,7 @@
 package models
 
 type Config struct {
-	DeviceID           string
+	IDDevice           string
 	MQTTHost           string
 	MQTTPort           string
 	MQTTClientID       string
@@ -13,28 +13,28 @@ type Config struct {
 }
 
 type DeviceReadingSetting struct {
-	DeviceID  string
+	IDDevice  string
 	Parameter string
 	Period    int
 	Active    bool
 }
 
 type DeviceUpdate struct {
-	DeviceID          string
+	IDDevice          string
 	HashUpdate        string
 	Type              string
 	UpdateDatetimeUTC string
 }
 
 type MessageConfigPayload struct {
-	DeviceID   string
+	IDDevice   string
 	HashUpdate string
 	Type       string
 	Settings   []DeviceReadingSetting
 }
 
 type ResponseConfigPayload struct {
-	DeviceID              string
+	IDDevice              string
 	HashUpdate            string
 	Type                  string
 	MainDeviceInformation any
@@ -42,7 +42,7 @@ type ResponseConfigPayload struct {
 }
 
 type DataPayload struct {
-	DeviceID       string
+	IDDevice       string
 	Parameter      string
 	Data           any
 	CollectedAtUtc string

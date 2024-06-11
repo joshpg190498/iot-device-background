@@ -45,50 +45,64 @@ func initializeDatabase() {
 }
 
 func startMQTTClient() {
-	go mqtt.ConnectClient(cfg.DeviceID, cfg.MQTTBroker, cfg.MQTTClientID, cfg.MQTTSubTopics, handleMessage)
+	go mqtt.ConnectClient(cfg.MQTTBroker, cfg.MQTTClientID, cfg.MQTTSubTopics, handleMessage)
 }
 
 func handleMessage(topic string, message []byte) {
+	var err error
 	if topic != cfg.MQTTSubTopics[0] {
 		return
 	}
-	messagePayload := parseMessageToSettings(message)
 
-	var responseConfigPayload models.ResponseConfigPayload
+	messagePayload, err := parseMessageToSettings(message)
+	if err != nil {
+		return
+	}
 
 	responseConfigPayload, err := handleUpdate(messagePayload)
 	if err != nil {
 		return
 	}
 
-	jsonData, err := json.Marshal(responseConfigPayload)
+	mqttPayload, err := stringifyPayload(responseConfigPayload)
 	if err != nil {
-		log.Printf("Error converting to JSON: %s", err)
 		return
 	}
 
-	mqtt.PublishData(cfg.MQTTPubConfigTopic, string(jsonData))
+	mqtt.PublishData(cfg.MQTTPubConfigTopic, mqttPayload)
 }
 
-func parseMessageToSettings(message []byte) models.MessageConfigPayload {
-	var messageConfigPayload models.MessageConfigPayload
+func stringifyPayload(payload any) (string, error) {
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("Error converting to JSON: %s", err)
+		return "", nil
+	}
+	stringJsonData := string(jsonData)
+	return stringJsonData, nil
+}
+
+func parseMessageToSettings(message []byte) (models.MessageConfigPayload, error) {
+	messageConfigPayload := models.MessageConfigPayload{}
 	if err := json.Unmarshal(message, &messageConfigPayload); err != nil {
 		log.Printf("Error parsing message: %v", err)
+		return models.MessageConfigPayload{}, err
 	}
-	return messageConfigPayload
+	return messageConfigPayload, nil
 }
 
 func handleUpdate(messagePayload models.MessageConfigPayload) (models.ResponseConfigPayload, error) {
-	var responseConfigPayload models.ResponseConfigPayload
-	responseConfigPayload.Type = messagePayload.Type
-	responseConfigPayload.DeviceID = messagePayload.DeviceID
-	responseConfigPayload.HashUpdate = messagePayload.HashUpdate
+	responseConfigPayload := models.ResponseConfigPayload{
+		Type:       messagePayload.Type,
+		IDDevice:   messagePayload.IDDevice,
+		HashUpdate: messagePayload.HashUpdate,
+	}
 
 	if responseConfigPayload.Type != "startup" && responseConfigPayload.Type != "update" {
 		return models.ResponseConfigPayload{}, fmt.Errorf("received message for unknown state: %s", messagePayload.Type)
 	}
 
-	deviceUpdate, err := sqlite.GetDeviceUpdates(messagePayload.Type, messagePayload.HashUpdate)
+	deviceUpdate, err := sqlite.GetDeviceUpdates(cfg.IDDevice, messagePayload.Type, messagePayload.HashUpdate)
 	if err != nil {
 		log.Printf("Error getting DeviceUpdates: %v", err)
 		return models.ResponseConfigPayload{}, err
@@ -138,7 +152,7 @@ func getAndInsertDeviceInfo() map[string]interface{} {
 		log.Printf("Error getting MainDeviceInformation: %v", err)
 		return nil
 	}
-	err = sqlite.InsertMainDeviceInformation(cfg.DeviceID, mainDeviceInformation)
+	err = sqlite.InsertMainDeviceInformation(cfg.IDDevice, mainDeviceInformation)
 	if err != nil {
 		log.Printf("Error inserting MainDeviceInformation: %v", err)
 		return nil
@@ -221,9 +235,9 @@ func runPeriodically(index int, stopChan chan struct{}) {
 				continue
 			}
 
-			err = publishData(dataPayload)
-			if err != nil {
-				log.Println("Error converting to JSON:", err)
+			mqttPayload, err := stringifyPayload(dataPayload)
+			if err == nil {
+				mqtt.PublishData(cfg.MQTTPubDataTopic, mqttPayload)
 			}
 
 			mutex.Unlock()
@@ -234,7 +248,7 @@ func runPeriodically(index int, stopChan chan struct{}) {
 }
 
 func collectData(index int) (models.DataPayload, error) {
-	var dataPayload models.DataPayload
+	dataPayload := models.DataPayload{}
 	utcTime := time.Now().UTC()
 	formattedTime := utcTime.Format(time.RFC3339)
 	data, err := system.CallFunctionByName(settings[index].Parameter)
@@ -242,19 +256,9 @@ func collectData(index int) (models.DataPayload, error) {
 		return dataPayload, err
 	}
 
-	dataPayload.DeviceID = cfg.DeviceID
+	dataPayload.IDDevice = cfg.IDDevice
 	dataPayload.Parameter = settings[index].Parameter
 	dataPayload.Data = data
 	dataPayload.CollectedAtUtc = formattedTime
 	return dataPayload, nil
-}
-
-func publishData(dataPayload models.DataPayload) error {
-	jsonData, err := json.Marshal(dataPayload)
-	if err != nil {
-		return err
-	}
-
-	mqtt.PublishData(cfg.MQTTPubDataTopic, string(jsonData))
-	return nil
 }

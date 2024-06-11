@@ -21,7 +21,7 @@ var (
 	connectionLock sync.Mutex
 )
 
-func ConnectClient(DeviceID string, MQTTBroker string, MQTTClientID string, MQTTSubTopics []string, handleMessage func(topic string, message []byte)) {
+func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []string, handleMessage func(topic string, message []byte)) {
 
 	if MQTTSubTopics == nil {
 		MQTTSubTopics = []string{}
