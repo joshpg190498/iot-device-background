@@ -133,9 +133,7 @@ func getCPUTemperature() (map[string]interface{}, error) {
 
 	cpuTemps := make(map[string]interface{})
 	for _, sensor := range sensors {
-		if sensor.SensorKey == "coretemp" || sensor.SensorKey == "k10temp" || sensor.SensorKey == "k8temp" {
-			cpuTemps[sensor.SensorKey] = sensor.Temperature
-		}
+		cpuTemps[sensor.SensorKey] = sensor.Temperature
 	}
 
 	return cpuTemps, nil
@@ -185,16 +183,16 @@ func getLoadAverage() (map[string]interface{}, error) {
 
 func getSystemHealthFunctions() map[string]FuncType {
 	return map[string]FuncType{
-		"main_info":   getMainInfo,
-		"ram":         getRAMUsage,
-		"disk":        getDiskUsage,
-		"net_stats":   getNetworkStats,
-		"net_info":    getNetworkInfo,
-		"cpu_temp":    getCPUTemperature,
-		"uptime":      getUptime,
-		"last_reboot": getLastReboot,
-		"cpu_usage":   getCPUUsage,
-		"load_avg":    getLoadAverage,
+		"main_info":    getMainInfo,
+		"ram":          getRAMUsage,
+		"disk":         getDiskUsage,
+		"net_stats":    getNetworkStats,
+		"net_info":     getNetworkInfo,
+		"cpu_temp":     getCPUTemperature,
+		"uptime":       getUptime,
+		"last_reboot":  getLastReboot,
+		"cpu_usage":    getCPUUsage,
+		"load_average": getLoadAverage,
 	}
 }
 

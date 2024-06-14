@@ -44,6 +44,6 @@ type ResponseConfigPayload struct {
 type DataPayload struct {
 	IDDevice       string
 	Parameter      string
-	Data           any
+	Data           interface{}
 	CollectedAtUtc string
 }
