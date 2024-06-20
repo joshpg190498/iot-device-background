@@ -48,9 +48,9 @@ func getRAMUsage() (map[string]interface{}, error) {
 		return nil, err
 	}
 	ramUsage := map[string]interface{}{
-		"totalRAM":       v.Total / 1024 / 1024, // MB
-		"freeRAM":        v.Free / 1024 / 1024,  // MB
-		"usedRAM":        v.Used / 1024 / 1024,  // MB
+		"totalRAM":       v.Total / 1024 / 1024,     // MB
+		"freeRAM":        v.Available / 1024 / 1024, // MB
+		"usedRAM":        v.Used / 1024 / 1024,      // MB
 		"usedPercentRAM": math.Round(v.UsedPercent*100) / 100,
 	}
 
