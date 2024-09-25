@@ -32,6 +32,11 @@ func getMainInfo() (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	cpuCount, err := cpu.Counts(false)
+	if err != nil {
+		return nil, err
+	}
+
 	return map[string]interface{}{
 		"hostname":  hostInfo.Hostname,
 		"processor": fmt.Sprintf("%s %s @ %.2f GHz", cpuInfo[0].ModelName, cpuInfo[0].VendorID, cpuInfo[0].Mhz/1000.0),
@@ -39,6 +44,7 @@ func getMainInfo() (map[string]interface{}, error) {
 		"hostID":    hostInfo.HostID,
 		"os":        fmt.Sprintf("%s, %s", hostInfo.OS, hostInfo.PlatformFamily),
 		"kernel":    hostInfo.KernelVersion,
+		"cpuCount":  cpuCount,
 	}, nil
 }
 
@@ -74,7 +80,7 @@ func getDiskUsage() (map[string]interface{}, error) {
 			"totalDisk":       usage.Total / 1024 / 1024, // MB
 			"freeDisk":        usage.Free / 1024 / 1024,  // MB
 			"usedDisk":        usage.Used / 1024 / 1024,  // MB
-			"UsedPercentDisk": math.Round(usage.UsedPercent*100) / 100,
+			"usedPercentDisk": math.Round(usage.UsedPercent*100) / 100,
 		}
 	}
 
