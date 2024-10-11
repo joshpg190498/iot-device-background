@@ -16,8 +16,7 @@ func LoadEnvVars() (*models.Config, error) {
 		return nil, fmt.Errorf("error al obtener el directorio actual: %w", err)
 	}
 
-	parentDir := filepath.Join(dir, "..", "..")
-	envFile := filepath.Join(parentDir, ".env")
+	envFile := filepath.Join(dir, ".env")
 
 	err = godotenv.Load(envFile)
 	if err != nil {
