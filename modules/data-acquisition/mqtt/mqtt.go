@@ -118,13 +118,12 @@ func PublishData(topic string, data string) {
 }
 
 func getCertPaths() (caPath, clientCertPath, clientKeyPath string, err error) {
-	dir, err := os.Getwd()
+	dir, err := os.Executable()
 	if err != nil {
 		return "", "", "", err
 	}
 
-	// Retroceder un nivel para acceder a la carpeta certs
-	certsDir := filepath.Join(dir, "..", "..", "certs")
+	certsDir := filepath.Join(filepath.Dir(dir), "certs")
 
 	caPath = filepath.Join(certsDir, "ca-crt.pem")
 	clientCertPath = filepath.Join(certsDir, "client-crt.pem")
