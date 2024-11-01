@@ -13,10 +13,17 @@ type Config struct {
 }
 
 type DeviceReadingSetting struct {
-	IDDevice  string
-	Parameter string
-	Period    int
-	Active    bool
+	IDDevice  string //	Identificador del dispositivo
+	Parameter string //	Identificador del parámetro
+	Period    int    // Periodo de lectura del parámetro
+	Active    bool   // Estado del parámetro
+}
+
+type MessageConfigPayload struct {
+	IDDevice   string                 // Identificador del dispositivo
+	HashUpdate string                 // Identificador del mensaje
+	Type       string                 // Tipo de actualización
+	Settings   []DeviceReadingSetting // Configuraciones
 }
 
 type DeviceUpdate struct {
@@ -26,24 +33,17 @@ type DeviceUpdate struct {
 	UpdateDatetimeUTC string
 }
 
-type MessageConfigPayload struct {
-	IDDevice   string
-	HashUpdate string
-	Type       string
-	Settings   []DeviceReadingSetting
-}
-
 type ResponseConfigPayload struct {
-	IDDevice              string
-	HashUpdate            string
-	Type                  string
-	MainDeviceInformation any
-	UpdateDatetimeUTC     string
+	IDDevice              string // Identificador del dispositivo
+	HashUpdate            string // Identificador del mensaje
+	Type                  string // Tipo de actualización
+	MainDeviceInformation any    // Información principal del dispositivo
+	UpdateDatetimeUTC     string // Fecha de actualización del dispositivo
 }
 
 type DataPayload struct {
-	IDDevice       string
-	Parameter      string
-	Data           interface{}
-	CollectedAtUtc string
+	IDDevice       string      // Identificador del dispositivo
+	Parameter      string      // Identificador del parámetro
+	Data           interface{} // Información del parámetro medido
+	CollectedAtUtc string      // Fecha de adquisición de la data, UTC.
 }
