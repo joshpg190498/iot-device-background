@@ -102,6 +102,15 @@ func handleUpdate(messagePayload models.MessageConfigPayload) (models.ResponseCo
 		return models.ResponseConfigPayload{}, fmt.Errorf("received message for unknown state: %s", messagePayload.Type)
 	}
 
+	if responseConfigPayload.Type == "startup" {
+		log.Printf("Se recibió un mensaje de inicialización...")
+
+	}
+
+	if responseConfigPayload.Type == "update" {
+		log.Printf("Se recibió un mensaje de actualización...")
+	}
+
 	deviceUpdate, err := sqlite.GetDeviceUpdates(cfg.IDDevice, messagePayload.Type, messagePayload.HashUpdate)
 	if err != nil {
 		log.Printf("Error getting DeviceUpdates: %v", err)
@@ -199,6 +208,7 @@ func startNewGoroutines() {
 		wg.Add(1)
 		go func(index int, stopChan chan struct{}) {
 			defer wg.Done()
+			log.Printf("Inicializando proceso de adquisición para el parámetro %s", settings[i].Parameter)
 			runPeriodically(index, stopChan)
 		}(i, stopChan)
 	}

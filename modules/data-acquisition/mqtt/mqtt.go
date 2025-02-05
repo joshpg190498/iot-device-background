@@ -112,8 +112,6 @@ func PublishData(topic string, data string) {
 	token.Wait()
 	if token.Error() != nil {
 		log.Printf("Error al publicar en el tópico %s: %v\n", topic, token.Error())
-	} else {
-		log.Printf("Mensaje publicado en el tópico %s: %s\n", topic, data)
 	}
 }
 

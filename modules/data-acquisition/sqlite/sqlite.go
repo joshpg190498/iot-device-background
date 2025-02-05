@@ -205,10 +205,6 @@ func UpdateSettings(hashUpdate string, updateType string, newSettings []models.D
 }
 
 func InsertMainDeviceInformation(idDevice string, mainDeviceInformation map[string]interface{}) error {
-	log.Println(mainDeviceInformation)
-	for key := range mainDeviceInformation {
-		log.Println("Key:", key)
-	}
 	_, err := db.Exec(`
 		INSERT INTO MAIN_DEVICE_INFORMATION (
 			ID_DEVICE, 
