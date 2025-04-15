@@ -1,0 +1,12 @@
+[Unit]
+Description=SBC PMS - Data Acquisition __bin_filename__
+After=network.target
+
+[Service]
+ExecStart=__Working_Directory__/__bin_filename__
+WorkingDirectory=__Working_Directory__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi.user.target
