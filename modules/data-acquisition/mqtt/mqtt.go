@@ -19,7 +19,22 @@ var (
 	opts           *mqtt.ClientOptions
 	isConnected    bool
 	connectionLock sync.Mutex
+	connectOnce    sync.Once
+
+	Connected = make(chan struct{})
+
+	onConnectCallback func()
 )
+
+func SetOnConnectCallback(f func()) {
+	onConnectCallback = f
+}
+
+func IsConnected() bool {
+	connectionLock.Lock()
+	defer connectionLock.Unlock()
+	return isConnected
+}
 
 func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []string, handleMessage func(topic string, message []byte)) {
 
@@ -44,11 +59,17 @@ func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []strin
 		connectionLock.Unlock()
 		log.Printf("Conexión al broker %s con client-id %s\n", MQTTBroker, MQTTClientID)
 		for _, MQTTSubTopic := range MQTTSubTopics {
-			if token := client.Subscribe(MQTTSubTopic, 0, onMessageReceived); token.Wait() && token.Error() != nil {
+			if token := client.Subscribe(MQTTSubTopic, 1, onMessageReceived); token.Wait() && token.Error() != nil {
 				log.Printf("Error al suscribirse a %s: %v\n", MQTTSubTopic, token.Error())
 			} else {
 				log.Printf("Suscrito al tópico %s\n", MQTTSubTopic)
 			}
+		}
+
+		connectOnce.Do(func() { close(Connected) })
+
+		if onConnectCallback != nil {
+			go onConnectCallback()
 		}
 	}
 
@@ -99,20 +120,22 @@ func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []strin
 	}
 }
 
-func PublishData(topic string, data string) {
+func PublishData(topic string, data string) bool {
 	connectionLock.Lock()
 	defer connectionLock.Unlock()
 
 	if client == nil || !isConnected {
 		log.Println("El cliente MQTT no está conectado.")
-		return
+		return false
 	}
 
 	token := client.Publish(topic, 0, false, data)
 	token.Wait()
 	if token.Error() != nil {
 		log.Printf("Error al publicar en el tópico %s: %v\n", topic, token.Error())
+		return false
 	}
+	return true
 }
 
 func getCertPaths() (caPath, clientCertPath, clientKeyPath string, err error) {

@@ -47,3 +47,10 @@ type DataPayload struct {
 	Data           interface{} // Información del parámetro medido
 	CollectedAtUtc string      // Fecha de adquisición de la data, UTC.
 }
+
+type PendingMetric struct {
+	ID           int64
+	Topic        string
+	Payload      string
+	CreatedAtUtc string
+}

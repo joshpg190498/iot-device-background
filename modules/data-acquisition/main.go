@@ -9,9 +9,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
+
+const mqttConnectTimeout = 10 * time.Second
+
+const pendingMetricsFlushBatch = 50
 
 var (
 	cfg          *models.Config
@@ -23,10 +30,15 @@ var (
 
 func main() {
 	loadConfiguration()
-	startMQTTClient()
 	initializeDatabase()
-	time.AfterFunc(3*time.Second, startDataAcquisition)
-	select {}
+
+	mqtt.SetOnConnectCallback(flushPendingMetrics)
+	startMQTTClient()
+	waitForConnectionOrTimeout(mqttConnectTimeout)
+
+	startDataAcquisition()
+
+	waitForShutdown()
 }
 
 func loadConfiguration() {
@@ -48,9 +60,36 @@ func startMQTTClient() {
 	go mqtt.ConnectClient(cfg.MQTTBroker, cfg.MQTTClientID, cfg.MQTTSubTopics, handleMessage)
 }
 
+func waitForConnectionOrTimeout(timeout time.Duration) {
+	select {
+	case <-mqtt.Connected:
+		log.Println("Conectado al broker MQTT. Iniciando adquisición de datos.")
+	case <-time.After(timeout):
+		log.Printf("No se logró conectar al broker MQTT en %s. Iniciando adquisición en modo offline (buffer local).\n", timeout)
+	}
+}
+
+func waitForShutdown() {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Señal de apagado recibida, deteniendo procesos de adquisición...")
+	mutex.Lock()
+	stopCurrentGoroutines()
+	mutex.Unlock()
+
+	wg.Wait()
+
+	if err := sqlite.CloseDB(); err != nil {
+		log.Println("Error cerrando base de datos:", err)
+	}
+	log.Println("Apagado completo.")
+}
+
 func handleMessage(topic string, message []byte) {
 	var err error
-	if topic != cfg.MQTTSubTopics[0] {
+	if len(cfg.MQTTSubTopics) == 0 || topic != cfg.MQTTSubTopics[0] {
 		return
 	}
 
@@ -76,7 +115,7 @@ func stringifyPayload(payload any) (string, error) {
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		log.Printf("Error converting to JSON: %s", err)
-		return "", nil
+		return "", err
 	}
 	stringJsonData := string(jsonData)
 	return stringJsonData, nil
@@ -147,7 +186,7 @@ func updateAndLogSettings(messagePayload models.MessageConfigPayload, responseCo
 }
 
 func getMainDeviceInformation() map[string]interface{} {
-	mainDeviceInformation, err := sqlite.GetMainDeviceInformation()
+	mainDeviceInformation, err := sqlite.GetMainDeviceInformation(cfg.IDDevice)
 	if err != nil {
 		log.Printf("Error getting MainDeviceInformation: %v", err)
 		return nil
@@ -232,42 +271,105 @@ func runPeriodically(index int, stopChan chan struct{}) {
 		case <-stopChan:
 			return
 		case <-timer.C:
-			mutex.Lock()
-			if !settings[index].Active {
-				mutex.Unlock()
-				continue
-			}
-
-			dataPayload, err := collectData(index)
-			if err != nil {
-				log.Println("Error:", err)
-				mutex.Unlock()
-				continue
-			}
-
-			mqttPayload, err := stringifyPayload(dataPayload)
-			if err == nil {
-				mqtt.PublishData(cfg.MQTTPubDataTopic, mqttPayload)
-			}
-
-			mutex.Unlock()
-			period := time.Duration(settings[index].Period) * time.Second
+			period := processReading(index)
 			timer.Reset(period)
 		}
 	}
 }
 
-func collectData(index int) (models.DataPayload, error) {
+func processReading(index int) time.Duration {
+	parameter, active, period, ok := readSetting(index)
+	if !ok {
+		// El índice dejó de ser válido (la configuración cambió). Esta
+		// goroutine debería recibir la señal de stopChan en breve; se
+		// reintenta con un período corto por defecto mientras tanto.
+		return time.Second
+	}
+
+	if !active {
+		return period
+	}
+
+	dataPayload, err := collectData(cfg.IDDevice, parameter)
+	if err != nil {
+		log.Printf("Error recolectando el parámetro %s: %v\n", parameter, err)
+		return period
+	}
+
+	mqttPayload, err := stringifyPayload(dataPayload)
+	if err != nil {
+		log.Printf("Error serializando payload de %s: %v\n", parameter, err)
+		return period
+	}
+
+	publishOrBuffer(cfg.MQTTPubDataTopic, mqttPayload)
+
+	return period
+}
+
+func readSetting(index int) (parameter string, active bool, period time.Duration, ok bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	if index < 0 || index >= len(settings) {
+		return "", false, 0, false
+	}
+	s := settings[index]
+	return s.Parameter, s.Active, time.Duration(s.Period) * time.Second, true
+}
+
+func publishOrBuffer(topic string, payload string) {
+	if mqtt.IsConnected() && mqtt.PublishData(topic, payload) {
+		return
+	}
+	if err := sqlite.InsertPendingMetric(topic, payload); err != nil {
+		log.Println("Error bufferizando métrica pendiente:", err)
+	}
+}
+
+func flushPendingMetrics() {
+	for {
+		pending, err := sqlite.GetPendingMetrics(pendingMetricsFlushBatch)
+		if err != nil {
+			log.Println("Error leyendo métricas pendientes:", err)
+			return
+		}
+		if len(pending) == 0 {
+			return
+		}
+
+		sentAny := false
+		for _, p := range pending {
+			if !mqtt.IsConnected() {
+				return
+			}
+			if !mqtt.PublishData(p.Topic, p.Payload) {
+				return
+			}
+			if err := sqlite.DeletePendingMetric(p.ID); err != nil {
+				log.Println("Error eliminando métrica pendiente ya enviada:", err)
+				return
+			}
+			sentAny = true
+		}
+
+		if !sentAny {
+			return
+		}
+	}
+}
+
+func collectData(idDevice string, parameter string) (models.DataPayload, error) {
 	dataPayload := models.DataPayload{}
 	utcTime := time.Now().UTC()
 	formattedTime := utcTime.Format(time.RFC3339)
-	data, err := system.CallFunctionByName(settings[index].Parameter)
+	data, err := system.CallFunctionByName(parameter)
 	if err != nil {
 		return dataPayload, err
 	}
 
-	dataPayload.IDDevice = cfg.IDDevice
-	dataPayload.Parameter = settings[index].Parameter
+	dataPayload.IDDevice = idDevice
+	dataPayload.Parameter = parameter
 	dataPayload.Data = data
 	dataPayload.CollectedAtUtc = formattedTime
 	return dataPayload, nil

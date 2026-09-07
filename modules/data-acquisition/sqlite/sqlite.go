@@ -14,15 +14,21 @@ import (
 
 var db *sql.DB
 
+const maxPendingMetrics = 5000
+
 func ConnectDB(dbPath string) (*sql.DB, error) {
 	database, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
 	}
+	database.SetMaxOpenConns(1)
 	return database, nil
 }
 
 func CloseDB() error {
+	if db == nil {
+		return nil
+	}
 	return db.Close()
 }
 
@@ -36,31 +42,34 @@ func InitDB(dbPath string) error {
 		}
 	}
 
+	dbExists := true
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		_, err := os.Create(dbPath)
-		if err != nil {
+		dbExists = false
+		if _, err := os.Create(dbPath); err != nil {
 			log.Println("Error al crear DB.", err)
 			return err
 		}
+	}
 
-		database, err := ConnectDB(dbPath)
-		if err != nil {
-			log.Println("Error al conectarse a DB.", err)
-			return err
-		}
-		db = database
+	database, err := ConnectDB(dbPath)
+	if err != nil {
+		log.Println("Error al conectarse a DB.", err)
+		return err
+	}
+	db = database
 
+	if !dbExists {
 		if _, err := db.Exec(QueryCreateTables()); err != nil {
 			log.Println("Error creando tablas en DB.", err)
 			return err
 		}
 	} else {
-		database, err := ConnectDB(dbPath)
-		if err != nil {
+		if _, err := db.Exec(QueryCreateTables()); err != nil {
+			log.Println("Error verificando/creando tablas en DB.", err)
 			return err
 		}
-		db = database
 	}
+
 	log.Println("Conexión exitosa a DB.")
 	return nil
 }
@@ -92,6 +101,13 @@ func QueryCreateTables() string {
 		UPDATE_DATETIME_UTC TEXT,
 		PRIMARY KEY (ID_DEVICE, HASH_UPDATE)
 	);
+
+	CREATE TABLE IF NOT EXISTS PENDING_METRICS (
+		ID INTEGER PRIMARY KEY AUTOINCREMENT,
+		TOPIC TEXT NOT NULL,
+		PAYLOAD TEXT NOT NULL,
+		CREATED_AT_UTC TEXT NOT NULL
+	);
 	`
 }
 
@@ -114,9 +130,9 @@ func GetDeviceReadingSettings() ([]models.DeviceReadingSetting, error) {
 	return settings, nil
 }
 
-func GetMainDeviceInformation() (map[string]interface{}, error) {
-	query := "SELECT HOSTNAME, PROCESSOR, RAM, HOSTID, OS, KERNEL FROM MAIN_DEVICE_INFORMATION"
-	row := db.QueryRow(query)
+func GetMainDeviceInformation(idDevice string) (map[string]interface{}, error) {
+	query := "SELECT HOSTNAME, PROCESSOR, RAM, HOSTID, OS, KERNEL FROM MAIN_DEVICE_INFORMATION WHERE ID_DEVICE = ?"
+	row := db.QueryRow(query, idDevice)
 
 	var hostname, processor, ram, hostID, os, kernel string
 	err := row.Scan(
@@ -229,4 +245,54 @@ func InsertMainDeviceInformation(idDevice string, mainDeviceInformation map[stri
 	}
 
 	return nil
+}
+
+func InsertPendingMetric(topic string, payload string) error {
+	utcTime := time.Now().UTC().Format(time.RFC3339)
+	if _, err := db.Exec(
+		"INSERT INTO PENDING_METRICS (TOPIC, PAYLOAD, CREATED_AT_UTC) VALUES (?, ?, ?)",
+		topic, payload, utcTime,
+	); err != nil {
+		return err
+	}
+
+	var count int
+	if err := db.QueryRow("SELECT COUNT(*) FROM PENDING_METRICS").Scan(&count); err != nil {
+		return err
+	}
+	if count > maxPendingMetrics {
+		toDelete := count - maxPendingMetrics
+		if _, err := db.Exec(
+			"DELETE FROM PENDING_METRICS WHERE ID IN (SELECT ID FROM PENDING_METRICS ORDER BY ID ASC LIMIT ?)",
+			toDelete,
+		); err != nil {
+			return err
+		}
+		log.Printf("Buffer de métricas pendientes lleno: se descartaron %d lecturas antiguas.\n", toDelete)
+	}
+	return nil
+}
+
+func GetPendingMetrics(limit int) ([]models.PendingMetric, error) {
+	query := "SELECT ID, TOPIC, PAYLOAD, CREATED_AT_UTC FROM PENDING_METRICS ORDER BY ID ASC LIMIT ?"
+	rows, err := db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	pending := []models.PendingMetric{}
+	for rows.Next() {
+		var p models.PendingMetric
+		if err := rows.Scan(&p.ID, &p.Topic, &p.Payload, &p.CreatedAtUtc); err != nil {
+			return nil, err
+		}
+		pending = append(pending, p)
+	}
+	return pending, nil
+}
+
+func DeletePendingMetric(id int64) error {
+	_, err := db.Exec("DELETE FROM PENDING_METRICS WHERE ID = ?", id)
+	return err
 }

@@ -16,6 +16,8 @@ import (
 
 type FuncType func() (map[string]interface{}, error)
 
+const cpuSampleInterval = 300 * time.Millisecond
+
 func getMainInfo() (map[string]interface{}, error) {
 	hostInfo, err := host.Info()
 	if err != nil {
@@ -137,6 +139,10 @@ func getCPUTemperature() (map[string]interface{}, error) {
 		return nil, err
 	}
 
+	if len(sensors) == 0 {
+		return nil, errors.New("no se encontraron sensores de temperatura disponibles")
+	}
+
 	cpuTemps := make(map[string]interface{})
 	for _, sensor := range sensors {
 		cpuTemps[sensor.SensorKey] = sensor.Temperature
@@ -166,9 +172,12 @@ func getLastReboot() (map[string]interface{}, error) {
 }
 
 func getCPUUsage() (map[string]interface{}, error) {
-	percentages, err := cpu.Percent(0, false)
+	percentages, err := cpu.Percent(cpuSampleInterval, false)
 	if err != nil {
 		return nil, err
+	}
+	if len(percentages) == 0 {
+		return nil, errors.New("no se pudo obtener el porcentaje de uso de CPU")
 	}
 	return map[string]interface{}{
 		"cpuUsage": math.Round(percentages[0]*100) / 100,
