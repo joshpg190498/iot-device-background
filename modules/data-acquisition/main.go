@@ -1,9 +1,9 @@
 package main
 
 import (
+	"ceiot-tf-sbc/internal/mqtt"
 	"ceiot-tf-sbc/modules/data-acquisition/config"
 	"ceiot-tf-sbc/modules/data-acquisition/models"
-	"ceiot-tf-sbc/modules/data-acquisition/mqtt"
 	"ceiot-tf-sbc/modules/data-acquisition/sqlite"
 	"ceiot-tf-sbc/modules/data-acquisition/system"
 	"encoding/json"
@@ -57,7 +57,7 @@ func initializeDatabase() {
 }
 
 func startMQTTClient() {
-	go mqtt.ConnectClient(cfg.MQTTBroker, cfg.MQTTClientID, cfg.MQTTSubTopics, handleMessage)
+	go mqtt.ConnectClient(cfg.MQTTBroker, cfg.MQTTClientID, cfg.MQTTSubTopics, cfg.CertsDir, handleMessage)
 }
 
 func waitForConnectionOrTimeout(timeout time.Duration) {

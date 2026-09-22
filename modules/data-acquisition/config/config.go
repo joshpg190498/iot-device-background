@@ -36,6 +36,8 @@ func LoadEnvVars() (*models.Config, error) {
 	mqttPubDataTopic := fmt.Sprintf("devices/%s/data", idDevice)
 	databasePath := os.Getenv("SQLITE_DB_PATH")
 
+	certsDir := os.Getenv("CERTS_DIR")
+
 	config := &models.Config{
 		IDDevice:           idDevice,
 		MQTTHost:           mqttHost,
@@ -46,6 +48,7 @@ func LoadEnvVars() (*models.Config, error) {
 		MQTTPubConfigTopic: mqttPubConfigTopic,
 		MQTTPubDataTopic:   mqttPubDataTopic,
 		DatabasePath:       databasePath,
+		CertsDir:           certsDir,
 	}
 
 	return config, nil

@@ -10,6 +10,7 @@ type Config struct {
 	MQTTPubConfigTopic string
 	MQTTPubDataTopic   string
 	DatabasePath       string
+	CertsDir           string
 }
 
 type DeviceReadingSetting struct {

@@ -36,7 +36,7 @@ func IsConnected() bool {
 	return isConnected
 }
 
-func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []string, handleMessage func(topic string, message []byte)) {
+func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []string, CertsDir string, handleMessage func(topic string, message []byte)) {
 
 	if MQTTSubTopics == nil {
 		MQTTSubTopics = []string{}
@@ -73,7 +73,7 @@ func ConnectClient(MQTTBroker string, MQTTClientID string, MQTTSubTopics []strin
 		}
 	}
 
-	caFile, certFile, keyFile, err := getCertPaths()
+	caFile, certFile, keyFile, err := getCertPaths(CertsDir)
 	if err != nil {
 		log.Fatalf("Error encontrando certificados: %v", err)
 	}
@@ -138,17 +138,11 @@ func PublishData(topic string, data string) bool {
 	return true
 }
 
-func getCertPaths() (caPath, clientCertPath, clientKeyPath string, err error) {
-	dir, err := os.Executable()
-	if err != nil {
-		return "", "", "", err
-	}
+func getCertPaths(CertsDir string) (caPath, clientCertPath, clientKeyPath string, err error) {
 
-	certsDir := filepath.Join(filepath.Dir(dir), "certs")
-
-	caPath = filepath.Join(certsDir, "ca-crt.pem")
-	clientCertPath = filepath.Join(certsDir, "client-crt.pem")
-	clientKeyPath = filepath.Join(certsDir, "client-key.pem")
+	caPath = filepath.Join(CertsDir, "ca-crt.pem")
+	clientCertPath = filepath.Join(CertsDir, "client-crt.pem")
+	clientKeyPath = filepath.Join(CertsDir, "client-key.pem")
 
 	if _, err := os.Stat(caPath); err != nil {
 		return "", "", "", fmt.Errorf("error: CA certificate file not found: %v", err)
