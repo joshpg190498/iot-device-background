@@ -1,0 +1,17 @@
+# Model agent (Go): receives, verifies (sha256) and activates deployed models.
+[Unit]
+Description=fedsbc - Agente de modelos
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fedsbc
+Group=fedsbc
+UMask=0007
+WorkingDirectory=/opt/fedsbc
+ExecStart=/opt/fedsbc/bin/model-manager
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

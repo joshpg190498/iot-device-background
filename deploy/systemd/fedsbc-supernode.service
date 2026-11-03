@@ -1,0 +1,21 @@
+# Flower SuperNode (Python): takes part in federated training.
+# Starts after the telemetry agent but does not depend on it: if the agent
+# fails, the node still trains and its hardware part counts as neutral.
+[Unit]
+Description=fedsbc - SuperNode de aprendizaje federado (Flower)
+After=network-online.target fedsbc-agent.service
+Wants=network-online.target
+
+[Service]
+User=fedsbc
+Group=fedsbc
+UMask=0007
+WorkingDirectory=/opt/fedsbc/frameworks/flower
+Environment=FLWR_HOME=/opt/fedsbc/frameworks/flower/home
+Environment=KERAS_HOME=/opt/fedsbc/var/keras
+ExecStart=/opt/fedsbc/frameworks/flower/start-supernode.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

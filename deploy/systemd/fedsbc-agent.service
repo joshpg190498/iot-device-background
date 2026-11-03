@@ -1,0 +1,21 @@
+# Telemetry agent (Go). Feeds the hardware-health weighting.
+# Nice=-5: it must keep measuring under heavy load (with normal priority we
+# saw missing samples exactly at the moments of highest load).
+[Unit]
+Description=fedsbc - Agente de telemetria
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=fedsbc
+Group=fedsbc
+UMask=0007
+SupplementaryGroups=video
+WorkingDirectory=/opt/fedsbc
+ExecStart=/opt/fedsbc/bin/data-acquisition
+Restart=always
+RestartSec=5
+Nice=-5
+
+[Install]
+WantedBy=multi-user.target

@@ -208,6 +208,8 @@ func getSystemHealthFunctions() map[string]FuncType {
 		"last_reboot":  getLastReboot,
 		"cpu_usage":    getCPUUsage,
 		"load_average": getLoadAverage,
+		"cpu_freq":     getCPUFrequency,
+		"pressure":     getPressure,
 	}
 }
 
