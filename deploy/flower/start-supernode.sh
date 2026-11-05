@@ -8,7 +8,11 @@ set -a
 source <(tr -d '\r' < "$PREFIX/etc/fedsbc.env")   # accept Windows line endings (CRLF)
 set +a
 
+# Flower starts helper processes (flower-superexec) by name: the venv must be on PATH
+VENV_BIN="$PREFIX/frameworks/flower/.venv/bin"
+export PATH="$VENV_BIN:$PATH"
+
 # ID_DEVICE is the node identity for telemetry and FL
-exec "$PREFIX/frameworks/flower/.venv/bin/flower-supernode" --insecure \
+exec "$VENV_BIN/flower-supernode" --insecure \
   --superlink "$SUPERLINK" \
   --node-config "partition-id=${PARTITION_ID} num-partitions=${NUM_PARTITIONS} device-id=\"${ID_DEVICE}\""

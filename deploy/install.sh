@@ -68,13 +68,33 @@ else
   die "no hay certificados MQTT: copiar ca-crt.pem, client-crt.pem y client-key.pem a $SRC_CERTS"
 fi
 
-GO_BIN="$(as_op 'command -v go' 2>/dev/null || true)"
-if [ -z "$GO_BIN" ] && [ -x /usr/local/go/bin/go ]; then GO_BIN=/usr/local/go/bin/go; fi
+# Prefer the official Go in /usr/local/go: the apt package can be older than go.mod needs
+if [ -x /usr/local/go/bin/go ]; then GO_BIN=/usr/local/go/bin/go; else GO_BIN="$(as_op 'command -v go' 2>/dev/null || true)"; fi
 [ -n "$GO_BIN" ] || die "no se encontró Go:  sudo apt install -y golang"
-ok "Go: $(as_op "'$GO_BIN' version" | cut -d' ' -f3)"
+GO_HAVE="$(as_op "'$GO_BIN' version" | sed -nE 's/.*go([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p')"
+GO_NEED="$(sed -nE 's/^go ([0-9.]+).*/\1/p' "$REPO/go.mod")"
+if [ "$(printf '%s\n%s\n' "$GO_NEED" "$GO_HAVE" | sort -V | head -1)" != "$GO_NEED" ]; then
+  die "Go $GO_HAVE es más antiguo que el que pide go.mod ($GO_NEED). Instalar el oficial:
+         ARCH=\$(dpkg --print-architecture)
+         curl -LO https://go.dev/dl/go1.24.4.linux-\$ARCH.tar.gz
+         sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.24.4.linux-\$ARCH.tar.gz
+       y volver a ejecutar el instalador."
+fi
+ok "Go $GO_HAVE ($GO_BIN; go.mod pide $GO_NEED)"
 
-[ -d /proc/pressure ] || warn "PSI no está activo: agregar psi=1 a /boot/firmware/cmdline.txt y reiniciar (la telemetría de presión quedará vacía)"
+if [ ! -d /proc/pressure ]; then
+  # Raspberry Pi OS bookworm and newer use /boot/firmware; older versions use /boot
+  CMDLINE=/boot/firmware/cmdline.txt; [ -f "$CMDLINE" ] || CMDLINE=/boot/cmdline.txt
+  warn "PSI no está activo: agregar psi=1 a $CMDLINE y reiniciar (la telemetría de presión quedará vacía)"
+  echo "          sudo sed -i '1 s/\$/ psi=1/' $CMDLINE && sudo reboot"
+fi
 command -v vcgencmd >/dev/null || warn "vcgencmd no está instalado (sudo apt install -y raspi-utils-core): la frecuencia se leerá del kernel"
+
+# uv (Python manager) is installed by this script if missing; that needs curl
+if ! as_op 'command -v uv' >/dev/null 2>&1 && [ ! -x "$PREFIX/frameworks/flower/uv/uv" ]; then
+  command -v curl >/dev/null || die "falta curl para instalar uv:  sudo apt install -y curl"
+  ok "uv no está instalado: se instalará en $PREFIX/frameworks/flower/uv"
+fi
 
 # ------------------------------------------------------- 1. Go binaries
 # Build into a temp folder before stopping anything: if the build fails,
