@@ -68,17 +68,29 @@ else
   die "no hay certificados MQTT: copiar ca-crt.pem, client-crt.pem y client-key.pem a $SRC_CERTS"
 fi
 
+# Official Go tarball to install when Go is missing or too old (apt may install
+# an older or a different version than the one tested)
+GO_VERSION="1.24.4"
+case "$(dpkg --print-architecture 2>/dev/null || uname -m)" in
+  arm64|aarch64) GO_ARCH=arm64 ;;
+  armhf|armv7l)  GO_ARCH=armv6l ;;
+  amd64|x86_64)  GO_ARCH=amd64 ;;
+  *)             GO_ARCH="$(uname -m)" ;;
+esac
+GO_TAR="go$GO_VERSION.linux-$GO_ARCH.tar.gz"
+GO_HOWTO="Instalar Go $GO_VERSION y volver a ejecutar el instalador:
+         curl -LO https://go.dev/dl/$GO_TAR
+         sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf $GO_TAR && rm $GO_TAR"
+
 # Prefer the official Go in /usr/local/go: the apt package can be older than go.mod needs
 if [ -x /usr/local/go/bin/go ]; then GO_BIN=/usr/local/go/bin/go; else GO_BIN="$(as_op 'command -v go' 2>/dev/null || true)"; fi
-[ -n "$GO_BIN" ] || die "no se encontró Go:  sudo apt install -y golang"
+[ -n "$GO_BIN" ] || die "no se encontró Go.
+       $GO_HOWTO"
 GO_HAVE="$(as_op "'$GO_BIN' version" | sed -nE 's/.*go([0-9]+\.[0-9]+(\.[0-9]+)?).*/\1/p')"
 GO_NEED="$(sed -nE 's/^go ([0-9.]+).*/\1/p' "$REPO/go.mod")"
 if [ "$(printf '%s\n%s\n' "$GO_NEED" "$GO_HAVE" | sort -V | head -1)" != "$GO_NEED" ]; then
-  die "Go $GO_HAVE es más antiguo que el que pide go.mod ($GO_NEED). Instalar el oficial:
-         ARCH=\$(dpkg --print-architecture)
-         curl -LO https://go.dev/dl/go1.24.4.linux-\$ARCH.tar.gz
-         sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf go1.24.4.linux-\$ARCH.tar.gz
-       y volver a ejecutar el instalador."
+  die "Go $GO_HAVE es más antiguo que el que pide go.mod ($GO_NEED).
+       $GO_HOWTO"
 fi
 ok "Go $GO_HAVE ($GO_BIN; go.mod pide $GO_NEED)"
 
